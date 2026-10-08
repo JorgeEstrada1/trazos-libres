@@ -122,6 +122,7 @@
 
 
         .logo-texto {
+            white-space: nowrap;
             font-size: 25px;
             font-weight: bold;
             color: var(--morado-fuerte);
@@ -139,6 +140,8 @@
 
 
         .menu a {
+            white-space: nowrap;
+
             text-decoration: none;
 
             color: var(--texto);
@@ -2335,6 +2338,41 @@
         }
 
 
+        @media (max-width: 1000px) {
+
+            nav {
+                position: absolute;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .menu {
+                gap: 14px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            #inicio {
+                padding-top: 140px;
+            }
+
+            .pagina {
+                padding-top: 170px;
+            }
+
+            #registro,
+            .fondo-formulario {
+                padding-top: 160px;
+            }
+
+            #registro::before,
+            .fondo-formulario::before {
+                top: 135px;
+            }
+
+        }
+
+
         @media (max-width: 800px) {
 
             nav {
@@ -3718,7 +3756,7 @@
         const COLUMNAS_OBRA =
             "id, titulo, descripcion, imagen_url, imagen_ruta, tecnica, estado, creado_en, " +
             "categoria_id, autor_id, " +
-            "autor:perfiles(id, nombre, artistico, foto_url, estado), " +
+            "autor:perfiles!publicaciones_autor_id_fkey(id, nombre, artistico, foto_url, estado), " +
             "categoria:categorias(nombre), " +
             "publicacion_etiqueta(etiquetas(nombre))";
 
@@ -4496,7 +4534,7 @@
 
                 const { data, error } = await sb
                     .from("perfiles")
-                    .select("id, nombre, artistico, foto_url, categoria_id, ciudad, especialidad, publicaciones(count)")
+                    .select("id, nombre, artistico, foto_url, categoria_id, ciudad, especialidad, publicaciones!publicaciones_autor_id_fkey(count)")
                     .eq("rol", "artista")
                     .eq("estado", "activo");
 
