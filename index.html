@@ -1,0 +1,6399 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Trazos Libres - Tu comunidad de dibujo</title>
+
+    <!--
+        ==========================================
+        SISTEMA WEB TRAZOS LIBRES
+        Publicación de dibujos y gestión de
+        portafolio de artistas independientes.
+
+        Interfaz:       HTML, CSS y JavaScript
+        Base de datos:  Supabase (PostgreSQL)
+        Cuentas:        Supabase Auth (contraseñas con hash bcrypt)
+        Imágenes:       Supabase Storage
+
+        La estructura de la base de datos y sus reglas
+        de seguridad están en supabase/esquema.sql
+        ==========================================
+    -->
+
+    <style>
+
+        /* ==========================================
+           PALETA DE COLORES
+        ========================================== */
+
+        :root {
+            --azul: #B9E3EF;
+            --azul-fuerte: #75B8CC;
+
+            --morado: #D4B9EA;
+            --morado-fuerte: #9B76BB;
+
+            --rosa: #F3BDD4;
+            --rosa-fuerte: #CE82A5;
+
+            --amarillo: #F8E5A4;
+            --amarillo-fuerte: #D5B84D;
+
+            --crema: #FFF8EF;
+
+            --lila-claro: #F5EFF8;
+
+            --texto: #51475A;
+
+            --sombra: 0 8px 20px rgba(90, 70, 100, 0.12);
+        }
+
+
+        /* ==========================================
+           CONFIGURACIÓN GENERAL
+        ========================================== */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+            color: var(--texto);
+            background: var(--crema);
+        }
+
+        img {
+            max-width: 100%;
+        }
+
+        a {
+            color: var(--morado-fuerte);
+        }
+
+
+        /* Cada pantalla del sistema es una "vista".
+           Solo se muestra una a la vez. */
+
+        .vista {
+            display: none;
+        }
+
+        .vista.activa {
+            display: block;
+        }
+
+
+        /* ==========================================
+           NAVEGACIÓN
+        ========================================== */
+
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+
+            width: 100%;
+
+            padding: 15px 7%;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            background: rgba(255, 248, 239, 0.90);
+
+            backdrop-filter: blur(10px);
+
+            box-shadow: 0 3px 15px rgba(80, 60, 90, 0.12);
+
+            z-index: 1000;
+        }
+
+
+        .logo-texto {
+            font-size: 25px;
+            font-weight: bold;
+            color: var(--morado-fuerte);
+            text-decoration: none;
+        }
+
+
+        .menu {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+
+            list-style: none;
+        }
+
+
+        .menu a {
+            text-decoration: none;
+
+            color: var(--texto);
+
+            font-weight: bold;
+
+            transition: 0.3s;
+        }
+
+
+        .menu a:hover,
+        .menu a.activo {
+            color: var(--rosa-fuerte);
+        }
+
+
+        .menu .menu-boton {
+            padding: 8px 18px;
+            border-radius: 20px;
+            background: var(--amarillo);
+            box-shadow: 0 3px 8px rgba(80, 60, 90, 0.12);
+        }
+
+        .menu .menu-boton:hover {
+            background: var(--amarillo-fuerte);
+            color: var(--texto);
+        }
+
+
+        /* ==========================================
+           PÁGINA PRINCIPAL
+        ========================================== */
+
+        #inicio {
+            min-height: 100vh;
+
+            padding-top: 90px;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            position: relative;
+
+            overflow: hidden;
+
+            background:
+                radial-gradient(circle at 10% 20%, #F5C6D9 0 25px, transparent 26px),
+                radial-gradient(circle at 90% 25%, #C7E8F2 0 30px, transparent 31px),
+                radial-gradient(circle at 20% 85%, #D9C4ED 0 35px, transparent 36px),
+                linear-gradient(
+                    135deg,
+                    #BDE4EF,
+                    #E0C8EE,
+                    #F5C5D9
+                );
+        }
+
+
+        /* Decoraciones */
+
+        .decoracion {
+            position: absolute;
+
+            font-size: 45px;
+
+            opacity: 0.65;
+
+            animation: flotar 4s infinite ease-in-out;
+        }
+
+
+        .d1 {
+            top: 20%;
+            left: 7%;
+        }
+
+        .d2 {
+            top: 30%;
+            right: 8%;
+        }
+
+        .d3 {
+            bottom: 15%;
+            left: 15%;
+        }
+
+        .d4 {
+            bottom: 20%;
+            right: 15%;
+        }
+
+
+        @keyframes flotar {
+
+            0%, 100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-15px);
+            }
+
+        }
+
+
+        /* ==========================================
+           CONTENIDO DEL INICIO
+        ========================================== */
+
+        .inicio-contenido {
+
+            width: 90%;
+            max-width: 1100px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 50px;
+
+            position: relative;
+
+            z-index: 2;
+
+            padding: 30px 0;
+        }
+
+
+        .inicio-logo {
+            width: 48%;
+
+            text-align: center;
+        }
+
+
+        /* Portada: la ilustración se muestra
+           dentro de un marco pastel */
+
+        .inicio-logo img {
+            width: 100%;
+
+            max-width: 340px;
+
+            max-height: 72vh;
+
+            object-fit: cover;
+
+            border-radius: 30px;
+
+            border: 8px solid rgba(255, 255, 255, 0.85);
+
+            box-shadow:
+                0 15px 35px rgba(80, 55, 100, 0.25);
+
+            transition: 0.4s;
+        }
+
+
+        .inicio-logo img:hover {
+            transform: scale(1.04) rotate(-1deg);
+        }
+
+
+        .inicio-texto {
+            width: 48%;
+        }
+
+
+        .inicio-texto h1 {
+
+            font-size: 60px;
+
+            color: var(--morado-fuerte);
+
+            margin-bottom: 10px;
+        }
+
+
+        .inicio-texto h2 {
+
+            font-size: 28px;
+
+            color: var(--rosa-fuerte);
+
+            margin-bottom: 20px;
+        }
+
+
+        .inicio-texto p {
+
+            font-size: 19px;
+
+            line-height: 1.7;
+
+            margin-bottom: 30px;
+        }
+
+
+        .inicio-botones {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+
+        /* ==========================================
+           BOTONES
+        ========================================== */
+
+        .boton {
+
+            display: inline-block;
+
+            padding: 15px 30px;
+
+            border-radius: 30px;
+
+            background: var(--amarillo);
+
+            color: var(--texto);
+
+            text-decoration: none;
+
+            font-weight: bold;
+
+            font-family: inherit;
+
+            font-size: 16px;
+
+            border: 2px solid rgba(130, 100, 120, 0.15);
+
+            box-shadow:
+                0 5px 12px rgba(80, 60, 90, 0.15);
+
+            cursor: pointer;
+
+            transition: 0.3s;
+        }
+
+
+        .boton:hover {
+
+            background: var(--amarillo-fuerte);
+
+            transform: translateY(-4px);
+        }
+
+
+        /* Botón secundario (blanco con borde morado) */
+
+        .boton-sec {
+            background: rgba(255, 255, 255, 0.85);
+            border: 2px solid var(--morado);
+        }
+
+        .boton-sec:hover {
+            background: var(--morado);
+        }
+
+
+        /* Botón para acciones delicadas (eliminar) */
+
+        .boton-peligro {
+            background: var(--rosa);
+        }
+
+        .boton-peligro:hover {
+            background: var(--rosa-fuerte);
+            color: white;
+        }
+
+
+        .boton-chico {
+            padding: 8px 16px;
+            font-size: 14px;
+            border-radius: 20px;
+        }
+
+        .boton-chico:hover {
+            transform: translateY(-2px);
+        }
+
+
+        /* ==========================================
+           SECCIÓN SOBRE NOSOTROS
+        ========================================== */
+
+        #sobre {
+
+            padding: 100px 8%;
+
+            text-align: center;
+
+            background: var(--crema);
+        }
+
+
+        .titulo {
+
+            font-size: 40px;
+
+            color: var(--morado-fuerte);
+
+            margin-bottom: 15px;
+        }
+
+
+        .descripcion {
+
+            max-width: 750px;
+
+            margin: auto;
+
+            line-height: 1.7;
+
+            font-size: 18px;
+        }
+
+
+        .tarjetas {
+
+            max-width: 1100px;
+
+            margin: 50px auto 0;
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 25px;
+        }
+
+
+        .tarjeta {
+
+            padding: 35px 25px;
+
+            border-radius: 25px;
+
+            box-shadow: var(--sombra);
+
+            transition: 0.3s;
+        }
+
+
+        .tarjeta:hover {
+
+            transform: translateY(-8px);
+        }
+
+
+        .tarjeta:nth-child(1) {
+            background: var(--azul);
+        }
+
+
+        .tarjeta:nth-child(2) {
+            background: var(--morado);
+        }
+
+
+        .tarjeta:nth-child(3) {
+            background: var(--rosa);
+        }
+
+
+        .tarjeta .icono {
+
+            font-size: 50px;
+
+            margin-bottom: 15px;
+        }
+
+
+        .tarjeta h3 {
+
+            font-size: 23px;
+
+            margin-bottom: 10px;
+        }
+
+
+        .tarjeta p {
+
+            line-height: 1.6;
+        }
+
+
+        /* ==========================================
+           GALERÍA
+        ========================================== */
+
+        #galeria {
+
+            padding: 100px 8%;
+
+            text-align: center;
+
+            background: var(--lila-claro);
+        }
+
+
+        .galeria {
+
+            max-width: 1100px;
+
+            margin: 50px auto 40px;
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 20px;
+        }
+
+
+        /* Cuadros pastel (se usan cuando
+           todavía no hay obras publicadas) */
+
+        .obra {
+
+            height: 220px;
+
+            border-radius: 25px;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            font-size: 22px;
+
+            font-weight: bold;
+
+            border: 5px solid white;
+
+            box-shadow:
+                0 6px 15px rgba(80, 60, 100, 0.12);
+
+            transition: 0.3s;
+        }
+
+
+        .obra:hover {
+
+            transform: scale(1.03);
+        }
+
+
+        .obra:nth-child(1) {
+            background: var(--azul);
+        }
+
+        .obra:nth-child(2) {
+            background: var(--rosa);
+        }
+
+        .obra:nth-child(3) {
+            background: var(--morado);
+        }
+
+        .obra:nth-child(4) {
+            background: var(--amarillo);
+        }
+
+        .obra:nth-child(5) {
+            background: var(--azul);
+        }
+
+        .obra:nth-child(6) {
+            background: var(--rosa);
+        }
+
+
+        /* ==========================================
+           TARJETA DE OBRA (DIBUJO PUBLICADO)
+        ========================================== */
+
+        .obra-card {
+
+            display: block;
+
+            background: white;
+
+            border-radius: 25px;
+
+            border: 5px solid white;
+
+            overflow: hidden;
+
+            text-decoration: none;
+
+            color: var(--texto);
+
+            text-align: left;
+
+            box-shadow:
+                0 6px 15px rgba(80, 60, 100, 0.12);
+
+            transition: 0.3s;
+        }
+
+
+        .obra-card:hover {
+            transform: scale(1.03);
+        }
+
+
+        .obra-card img {
+
+            width: 100%;
+
+            height: 210px;
+
+            object-fit: cover;
+
+            display: block;
+
+            border-radius: 20px;
+
+            background: var(--azul);
+        }
+
+
+        .obra-card:nth-child(4n+2) img {
+            background: var(--rosa);
+        }
+
+        .obra-card:nth-child(4n+3) img {
+            background: var(--morado);
+        }
+
+        .obra-card:nth-child(4n+4) img {
+            background: var(--amarillo);
+        }
+
+
+        .obra-info {
+            padding: 12px 10px 8px;
+        }
+
+
+        .obra-info h4 {
+
+            font-size: 17px;
+
+            margin-bottom: 4px;
+
+            white-space: nowrap;
+
+            overflow: hidden;
+
+            text-overflow: ellipsis;
+        }
+
+
+        .obra-info .autor {
+
+            font-size: 14px;
+
+            color: var(--morado-fuerte);
+
+            display: block;
+
+            margin-bottom: 8px;
+        }
+
+
+        .etiqueta-oculta {
+            font-size: 12px;
+            font-weight: bold;
+            color: #9A5265;
+        }
+
+
+        /* Pequeñas "pastillas" para categorías,
+           técnicas y etiquetas */
+
+        .chip {
+
+            display: inline-block;
+
+            padding: 4px 12px;
+
+            margin: 2px 2px 2px 0;
+
+            border-radius: 15px;
+
+            font-size: 13px;
+
+            font-weight: bold;
+
+            background: var(--morado);
+
+            color: var(--texto);
+
+            text-decoration: none;
+
+            border: none;
+
+            font-family: inherit;
+        }
+
+
+        .chip.azul {
+            background: var(--azul);
+        }
+
+        .chip.rosa {
+            background: var(--rosa);
+        }
+
+        .chip.amarillo {
+            background: var(--amarillo);
+        }
+
+        button.chip {
+            cursor: pointer;
+        }
+
+        button.chip:hover {
+            background: var(--rosa-fuerte);
+            color: white;
+        }
+
+
+        /* ==========================================
+           PÁGINAS INTERNAS
+        ========================================== */
+
+        .pagina {
+
+            min-height: 100vh;
+
+            padding: 130px 8% 80px;
+
+            background: var(--lila-claro);
+        }
+
+
+        .pagina-encabezado {
+
+            text-align: center;
+
+            margin-bottom: 35px;
+        }
+
+
+        .contenedor {
+            max-width: 1100px;
+            margin: auto;
+        }
+
+
+        /* Barra de búsqueda y filtros */
+
+        .filtros {
+
+            max-width: 1100px;
+
+            margin: 0 auto 30px;
+
+            padding: 20px;
+
+            display: grid;
+
+            grid-template-columns: 2fr 1fr 1fr;
+
+            gap: 15px;
+
+            background: white;
+
+            border-radius: 25px;
+
+            box-shadow: var(--sombra);
+        }
+
+
+        .filtros.dos {
+            grid-template-columns: 2fr 1fr;
+        }
+
+
+        .filtros input,
+        .filtros select {
+
+            width: 100%;
+
+            padding: 12px;
+
+            border-radius: 15px;
+
+            border: 2px solid #D6C7D9;
+
+            font-family: inherit;
+
+            font-size: 15px;
+
+            outline: none;
+
+            background: white;
+        }
+
+
+        .filtros input:focus,
+        .filtros select:focus {
+            border-color: var(--morado-fuerte);
+        }
+
+
+        .contador {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--morado-fuerte);
+            font-weight: bold;
+        }
+
+
+        .rejilla-obras {
+
+            max-width: 1100px;
+
+            margin: auto;
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fill, minmax(240px, 1fr));
+
+            gap: 20px;
+        }
+
+
+        /* Mensaje cuando no hay resultados */
+
+        .vacio {
+
+            grid-column: 1 / -1;
+
+            text-align: center;
+
+            padding: 50px 20px;
+
+            background: white;
+
+            border-radius: 25px;
+
+            box-shadow: var(--sombra);
+        }
+
+
+        .vacio .icono {
+            font-size: 55px;
+            margin-bottom: 10px;
+        }
+
+
+        .vacio p {
+            font-size: 18px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+
+        /* ==========================================
+           AVATARES (FOTO DE PERFIL)
+        ========================================== */
+
+        .avatar {
+
+            width: 45px;
+
+            height: 45px;
+
+            border-radius: 50%;
+
+            object-fit: cover;
+
+            flex-shrink: 0;
+
+            border: 3px solid white;
+
+            box-shadow: 0 3px 8px rgba(80, 60, 90, 0.15);
+        }
+
+
+        .avatar-letra {
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            font-weight: bold;
+
+            font-size: 20px;
+
+            color: white;
+
+            background: var(--rosa-fuerte);
+        }
+
+
+        .avatar.grande {
+            width: 140px;
+            height: 140px;
+            font-size: 55px;
+            border-width: 6px;
+        }
+
+
+        .avatar.mediano {
+            width: 90px;
+            height: 90px;
+            font-size: 38px;
+        }
+
+
+        /* ==========================================
+           TARJETAS DE ARTISTAS
+        ========================================== */
+
+        .rejilla-artistas {
+
+            max-width: 1100px;
+
+            margin: auto;
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fill, minmax(230px, 1fr));
+
+            gap: 25px;
+        }
+
+
+        .artista-card {
+
+            padding: 30px 20px;
+
+            border-radius: 25px;
+
+            text-align: center;
+
+            text-decoration: none;
+
+            color: var(--texto);
+
+            box-shadow: var(--sombra);
+
+            transition: 0.3s;
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: center;
+
+            gap: 8px;
+        }
+
+
+        .artista-card:hover {
+            transform: translateY(-8px);
+        }
+
+
+        .artista-card:nth-child(3n+1) {
+            background: var(--azul);
+        }
+
+        .artista-card:nth-child(3n+2) {
+            background: var(--morado);
+        }
+
+        .artista-card:nth-child(3n+3) {
+            background: var(--rosa);
+        }
+
+
+        .artista-card h3 {
+            font-size: 21px;
+        }
+
+
+        .artista-card p {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+
+        /* ==========================================
+           PERFIL DEL ARTISTA
+        ========================================== */
+
+        .perfil-cabecera {
+
+            max-width: 1100px;
+
+            margin: 0 auto 30px;
+
+            padding: 15px;
+
+            border-radius: 30px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #F7D3E1,
+                    #D4B9E9,
+                    #B8DDEB
+                );
+
+            box-shadow:
+                0 15px 35px rgba(80, 55, 100, 0.20);
+        }
+
+
+        .perfil-interior {
+
+            display: flex;
+
+            gap: 35px;
+
+            align-items: center;
+
+            padding: 35px;
+
+            background: rgba(255, 250, 244, 0.96);
+
+            border: 5px double #C58CB2;
+
+            border-radius: 20px;
+        }
+
+
+        .perfil-datos {
+            flex: 1;
+        }
+
+
+        .perfil-datos h1 {
+
+            font-size: 38px;
+
+            color: var(--morado-fuerte);
+
+            font-family:
+                "Comic Sans MS",
+                "Trebuchet MS",
+                sans-serif;
+        }
+
+
+        .perfil-datos .nombre-real {
+            color: var(--rosa-fuerte);
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+
+        .perfil-datos .bio {
+            line-height: 1.7;
+            margin: 12px 0;
+        }
+
+
+        .perfil-numeros {
+
+            display: flex;
+
+            gap: 20px;
+
+            flex-wrap: wrap;
+
+            margin: 12px 0 18px;
+
+            font-weight: bold;
+        }
+
+
+        .perfil-numeros span {
+            color: var(--morado-fuerte);
+        }
+
+
+        .perfil-acciones {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+
+        /* Bloques de información profesional */
+
+        .perfil-info {
+
+            max-width: 1100px;
+
+            margin: 0 auto 40px;
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fit, minmax(240px, 1fr));
+
+            gap: 20px;
+        }
+
+
+        .info-bloque {
+
+            padding: 25px;
+
+            border-radius: 25px;
+
+            box-shadow: var(--sombra);
+        }
+
+
+        .info-bloque:nth-child(4n+1) {
+            background: var(--azul);
+        }
+
+        .info-bloque:nth-child(4n+2) {
+            background: var(--morado);
+        }
+
+        .info-bloque:nth-child(4n+3) {
+            background: var(--rosa);
+        }
+
+        .info-bloque:nth-child(4n+4) {
+            background: var(--amarillo);
+        }
+
+
+        .info-bloque h3 {
+            margin-bottom: 10px;
+            font-size: 19px;
+        }
+
+
+        .info-bloque p {
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+
+        .subtitulo-seccion {
+
+            max-width: 1100px;
+
+            margin: 0 auto 20px;
+
+            font-size: 30px;
+
+            color: var(--morado-fuerte);
+        }
+
+
+        /* ==========================================
+           VER UNA PUBLICACIÓN
+        ========================================== */
+
+        .detalle-obra {
+
+            max-width: 1100px;
+
+            margin: auto;
+
+            display: grid;
+
+            grid-template-columns: 1.4fr 1fr;
+
+            gap: 30px;
+
+            align-items: start;
+        }
+
+
+        .detalle-imagen {
+
+            padding: 15px;
+
+            border-radius: 30px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #F7D3E1,
+                    #D4B9E9,
+                    #B8DDEB
+                );
+
+            box-shadow:
+                0 15px 35px rgba(80, 55, 100, 0.20);
+        }
+
+
+        .detalle-imagen img {
+
+            width: 100%;
+
+            display: block;
+
+            border-radius: 20px;
+
+            border: 5px solid white;
+
+            background: white;
+        }
+
+
+        .detalle-texto {
+
+            padding: 30px;
+
+            background: white;
+
+            border-radius: 25px;
+
+            box-shadow: var(--sombra);
+        }
+
+
+        .detalle-texto h1 {
+
+            font-size: 34px;
+
+            color: var(--morado-fuerte);
+
+            margin-bottom: 15px;
+
+            font-family:
+                "Comic Sans MS",
+                "Trebuchet MS",
+                sans-serif;
+        }
+
+
+        .autor-linea {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            margin-bottom: 15px;
+
+            text-decoration: none;
+
+            color: var(--texto);
+        }
+
+
+        .autor-linea strong {
+            display: block;
+            color: var(--morado-fuerte);
+        }
+
+
+        .autor-linea small {
+            color: #8A7C91;
+        }
+
+
+        .detalle-texto .descripcion-obra {
+            line-height: 1.7;
+            margin: 15px 0;
+            white-space: pre-line;
+        }
+
+
+        .dato {
+            margin: 8px 0;
+        }
+
+
+        .detalle-acciones {
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 10px;
+
+            margin-top: 20px;
+
+            padding-top: 20px;
+
+            border-top: 2px dashed var(--morado);
+        }
+
+
+        .nota-privada {
+            font-size: 13px;
+            color: #8A7C91;
+            margin-top: 10px;
+        }
+
+
+        /* Caja para reportar una obra */
+
+        .caja-reporte {
+
+            display: none;
+
+            margin-top: 15px;
+
+            padding: 15px;
+
+            border-radius: 15px;
+
+            background: #FBEFF4;
+        }
+
+
+        .caja-reporte.visible {
+            display: block;
+        }
+
+
+        /* ==========================================
+           COMENTARIOS
+        ========================================== */
+
+        .comentarios {
+
+            max-width: 1100px;
+
+            margin: 35px auto 0;
+
+            padding: 30px;
+
+            background: white;
+
+            border-radius: 25px;
+
+            box-shadow: var(--sombra);
+        }
+
+
+        .comentarios h2 {
+            color: var(--morado-fuerte);
+            margin-bottom: 20px;
+        }
+
+
+        .comentario {
+
+            display: flex;
+
+            gap: 12px;
+
+            padding: 15px;
+
+            margin-bottom: 12px;
+
+            background: var(--lila-claro);
+
+            border-radius: 18px;
+        }
+
+
+        .comentario-cuerpo {
+            flex: 1;
+        }
+
+
+        .comentario-cuerpo p {
+            line-height: 1.6;
+            margin-top: 4px;
+            white-space: pre-line;
+        }
+
+
+        .comentario-cuerpo small {
+            color: #8A7C91;
+        }
+
+
+        .form-comentario {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+
+        .form-comentario textarea {
+            flex: 1;
+        }
+
+
+        textarea,
+        .caja-reporte select {
+
+            width: 100%;
+
+            padding: 12px;
+
+            border-radius: 10px;
+
+            border: 2px solid #D6C7D9;
+
+            background: white;
+
+            font-family: inherit;
+
+            font-size: 15px;
+
+            outline: none;
+
+            resize: vertical;
+
+            transition: 0.3s;
+        }
+
+
+        textarea:focus {
+            border-color: var(--morado-fuerte);
+            box-shadow: 0 0 0 3px rgba(155, 118, 187, 0.15);
+        }
+
+
+        /* ==========================================
+           PANTALLA DE CREAR CUENTA
+           (y demás formularios)
+        ========================================== */
+
+        #registro,
+        .fondo-formulario {
+
+            min-height: 100vh;
+
+            padding: 120px 20px 80px;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            position: relative;
+
+            overflow: hidden;
+
+            background:
+
+                radial-gradient(
+                    circle at 8% 20%,
+                    #F4B8D2 0 35px,
+                    transparent 36px
+                ),
+
+                radial-gradient(
+                    circle at 90% 20%,
+                    #BEE5F0 0 45px,
+                    transparent 46px
+                ),
+
+                linear-gradient(
+                    135deg,
+                    #F7D0DF,
+                    #DCC7ED,
+                    #BDE4EF
+                );
+        }
+
+
+        /* Fondo decorativo */
+
+        #registro::before,
+        .fondo-formulario::before {
+
+            content: "✦  ✧  🎨  ✦  🖌️  ✧  ✦";
+
+            position: absolute;
+
+            top: 85px;
+
+            left: 0;
+
+            width: 100%;
+
+            text-align: center;
+
+            font-size: 35px;
+
+            letter-spacing: 30px;
+
+            opacity: 0.45;
+        }
+
+
+        /* ==========================================
+           MARCO DEL FORMULARIO
+        ========================================== */
+
+        .marco-registro {
+
+            width: 100%;
+
+            max-width: 700px;
+
+            padding: 15px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #F7D3E1,
+                    #D4B9E9,
+                    #B8DDEB
+                );
+
+            border-radius: 30px;
+
+            box-shadow:
+                0 15px 35px rgba(80, 55, 100, 0.25);
+
+            position: relative;
+
+            z-index: 5;
+
+            margin-top: 40px;
+        }
+
+
+        .marco-registro.angosto {
+            max-width: 480px;
+        }
+
+
+        .marco-interior {
+
+            background: rgba(255, 250, 244, 0.96);
+
+            border: 5px double #C58CB2;
+
+            border-radius: 20px;
+
+            padding: 35px;
+        }
+
+
+        /* ==========================================
+           TÍTULO CREAR CUENTA
+        ========================================== */
+
+        .registro-titulo {
+
+            text-align: center;
+
+            font-size: 45px;
+
+            color: #57445E;
+
+            margin-bottom: 10px;
+
+            font-family:
+                "Comic Sans MS",
+                "Trebuchet MS",
+                sans-serif;
+        }
+
+
+        .registro-subtitulo {
+
+            text-align: center;
+
+            color: var(--morado-fuerte);
+
+            margin-bottom: 30px;
+        }
+
+
+        .enlace-formulario {
+            grid-column: 1 / -1;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+
+        /* ==========================================
+           FORMULARIO
+        ========================================== */
+
+        .formulario {
+
+            display: grid;
+
+            grid-template-columns:
+                1fr 1fr;
+
+            gap: 15px;
+        }
+
+
+        .formulario.una-columna {
+            grid-template-columns: 1fr;
+        }
+
+
+        .campo {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 6px;
+        }
+
+
+        .campo-completo {
+
+            grid-column:
+                1 / -1;
+        }
+
+
+        .campo label {
+
+            font-weight: bold;
+
+            font-size: 14px;
+
+            color: #66546C;
+        }
+
+
+        .campo input,
+        .campo select,
+        .campo textarea {
+
+            width: 100%;
+
+            padding: 12px;
+
+            border-radius: 10px;
+
+            border: 2px solid #D6C7D9;
+
+            background: white;
+
+            font-family: inherit;
+
+            font-size: 15px;
+
+            outline: none;
+
+            transition: 0.3s;
+        }
+
+
+        .campo input:focus,
+        .campo select:focus,
+        .campo textarea:focus {
+
+            border-color: var(--morado-fuerte);
+
+            box-shadow:
+                0 0 0 3px rgba(155, 118, 187, 0.15);
+        }
+
+
+        .ayuda {
+            font-size: 12px;
+            color: #8A7C91;
+        }
+
+
+        .casilla {
+
+            grid-column: 1 / -1;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 12px 15px;
+
+            background: #FFF3CF;
+
+            border-radius: 12px;
+
+            font-weight: bold;
+
+            font-size: 14px;
+
+            cursor: pointer;
+        }
+
+
+        .casilla input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--morado-fuerte);
+        }
+
+
+        .separador {
+
+            grid-column: 1 / -1;
+
+            margin-top: 10px;
+
+            padding-bottom: 6px;
+
+            border-bottom: 2px dashed var(--morado);
+
+            color: var(--morado-fuerte);
+
+            font-size: 18px;
+        }
+
+
+        /* ==========================================
+           FOTO DE PERFIL
+        ========================================== */
+
+        .foto {
+
+            grid-column:
+                1 / -1;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 15px;
+
+            padding: 15px;
+
+            background: #F4E9F4;
+
+            border-radius: 15px;
+        }
+
+
+        .foto-icono {
+
+            width: 65px;
+
+            height: 65px;
+
+            border-radius: 50%;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            font-size: 30px;
+
+            background: var(--rosa);
+
+            overflow: hidden;
+
+            flex-shrink: 0;
+        }
+
+
+        .foto-icono img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+
+        .foto input {
+
+            border: none;
+
+            background: transparent;
+
+            max-width: 100%;
+        }
+
+
+        /* Vista previa del dibujo a publicar */
+
+        .vista-previa {
+
+            grid-column: 1 / -1;
+
+            min-height: 200px;
+
+            display: flex;
+
+            flex-direction: column;
+
+            justify-content: center;
+
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 20px;
+
+            background: #F4E9F4;
+
+            border: 3px dashed var(--morado);
+
+            border-radius: 20px;
+
+            text-align: center;
+        }
+
+
+        .vista-previa img {
+            max-height: 300px;
+            border-radius: 15px;
+            border: 4px solid white;
+            box-shadow: var(--sombra);
+        }
+
+
+        .vista-previa .icono {
+            font-size: 50px;
+        }
+
+
+        /* ==========================================
+           BOTÓN REGISTRARSE
+        ========================================== */
+
+        .boton-registro {
+
+            grid-column:
+                1 / -1;
+
+            text-align: center;
+
+            margin-top: 10px;
+        }
+
+
+        .boton-registro button {
+
+            padding: 14px 45px;
+
+            border: none;
+
+            border-radius: 25px;
+
+            background: var(--amarillo);
+
+            color: var(--texto);
+
+            font-size: 17px;
+
+            font-weight: bold;
+
+            font-family: inherit;
+
+            cursor: pointer;
+
+            box-shadow:
+                0 5px 12px rgba(80, 60, 90, 0.15);
+
+            transition: 0.3s;
+        }
+
+
+        .boton-registro button:hover {
+
+            background: var(--amarillo-fuerte);
+
+            transform: translateY(-3px);
+        }
+
+
+        .boton-registro button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+
+        /* ==========================================
+           MENSAJES DE VALIDACIÓN
+        ========================================== */
+
+        .mensaje {
+
+            grid-column:
+                1 / -1;
+
+            text-align: center;
+
+            font-weight: bold;
+
+            padding: 10px;
+
+            border-radius: 10px;
+
+            display: none;
+        }
+
+
+        .mensaje.exito {
+
+            display: block;
+
+            background: #CBEAD7;
+
+            color: #47775B;
+        }
+
+
+        .mensaje.error {
+
+            display: block;
+
+            background: #F3CDD5;
+
+            color: #9A5265;
+        }
+
+
+        /* Aviso flotante (aparece abajo unos segundos) */
+
+        .aviso {
+
+            position: fixed;
+
+            left: 50%;
+
+            bottom: 25px;
+
+            transform: translate(-50%, 150%);
+
+            max-width: 90%;
+
+            padding: 14px 28px;
+
+            border-radius: 25px;
+
+            font-weight: bold;
+
+            box-shadow:
+                0 10px 25px rgba(80, 55, 100, 0.25);
+
+            z-index: 2000;
+
+            opacity: 0;
+
+            pointer-events: none;
+
+            transition: 0.4s;
+        }
+
+
+        .aviso.visible {
+            transform: translate(-50%, 0);
+            opacity: 1;
+        }
+
+
+        .aviso.exito {
+            background: #CBEAD7;
+            color: #47775B;
+        }
+
+
+        .aviso.error {
+            background: #F3CDD5;
+            color: #9A5265;
+        }
+
+
+        /* ==========================================
+           PANEL DE ADMINISTRACIÓN
+        ========================================== */
+
+        .admin-pestanas {
+
+            max-width: 1100px;
+
+            margin: 0 auto 25px;
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            justify-content: center;
+
+            gap: 10px;
+        }
+
+
+        .admin-pestanas a {
+
+            padding: 10px 20px;
+
+            border-radius: 20px;
+
+            background: white;
+
+            color: var(--texto);
+
+            text-decoration: none;
+
+            font-weight: bold;
+
+            box-shadow: 0 4px 10px rgba(80, 60, 90, 0.10);
+
+            transition: 0.3s;
+        }
+
+
+        .admin-pestanas a:hover {
+            background: var(--morado);
+        }
+
+
+        .admin-pestanas a.activo {
+            background: var(--morado-fuerte);
+            color: white;
+        }
+
+
+        .insignia {
+
+            display: inline-block;
+
+            min-width: 22px;
+
+            padding: 1px 7px;
+
+            margin-left: 4px;
+
+            border-radius: 12px;
+
+            background: var(--rosa-fuerte);
+
+            color: white;
+
+            font-size: 13px;
+        }
+
+
+        .estadisticas {
+
+            max-width: 1100px;
+
+            margin: 0 auto 25px;
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(auto-fit, minmax(200px, 1fr));
+
+            gap: 20px;
+        }
+
+
+        .estadistica {
+
+            padding: 25px;
+
+            border-radius: 25px;
+
+            text-align: center;
+
+            box-shadow: var(--sombra);
+        }
+
+
+        .estadistica:nth-child(4n+1) {
+            background: var(--azul);
+        }
+
+        .estadistica:nth-child(4n+2) {
+            background: var(--morado);
+        }
+
+        .estadistica:nth-child(4n+3) {
+            background: var(--rosa);
+        }
+
+        .estadistica:nth-child(4n+4) {
+            background: var(--amarillo);
+        }
+
+
+        .estadistica .icono {
+            font-size: 35px;
+        }
+
+
+        .estadistica strong {
+            display: block;
+            font-size: 40px;
+            color: var(--texto);
+        }
+
+
+        .panel-blanco {
+
+            max-width: 1100px;
+
+            margin: 0 auto 25px;
+
+            padding: 25px;
+
+            background: white;
+
+            border-radius: 25px;
+
+            box-shadow: var(--sombra);
+
+            overflow-x: auto;
+        }
+
+
+        .panel-blanco h2 {
+            color: var(--morado-fuerte);
+            margin-bottom: 15px;
+        }
+
+
+        .tabla {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 650px;
+        }
+
+
+        .tabla th {
+
+            text-align: left;
+
+            padding: 12px 10px;
+
+            background: var(--morado);
+
+            font-size: 14px;
+        }
+
+
+        .tabla th:first-child {
+            border-radius: 12px 0 0 12px;
+        }
+
+
+        .tabla th:last-child {
+            border-radius: 0 12px 12px 0;
+        }
+
+
+        .tabla td {
+
+            padding: 12px 10px;
+
+            border-bottom: 1px solid #EEE3F2;
+
+            vertical-align: middle;
+
+            font-size: 15px;
+        }
+
+
+        .tabla tr:hover td {
+            background: #FBF7FD;
+        }
+
+
+        .tabla .miniatura {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 12px;
+        }
+
+
+        .tabla .acciones {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+
+        .estado {
+
+            display: inline-block;
+
+            padding: 3px 10px;
+
+            border-radius: 12px;
+
+            font-size: 13px;
+
+            font-weight: bold;
+        }
+
+
+        .estado.bien {
+            background: #CBEAD7;
+            color: #47775B;
+        }
+
+
+        .estado.mal {
+            background: #F3CDD5;
+            color: #9A5265;
+        }
+
+
+        .estado.espera {
+            background: #FFF3CF;
+            color: #8A6D12;
+        }
+
+
+        .fila-formulario {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+
+        .fila-formulario input {
+
+            flex: 1;
+
+            padding: 12px;
+
+            border-radius: 15px;
+
+            border: 2px solid #D6C7D9;
+
+            font-family: inherit;
+
+            font-size: 15px;
+
+            outline: none;
+        }
+
+
+        /* ==========================================
+           PIE DE PÁGINA
+        ========================================== */
+
+        footer {
+
+            padding: 30px;
+
+            text-align: center;
+
+            color: white;
+
+            background: var(--azul-fuerte);
+        }
+
+
+        footer p {
+
+            margin: 5px;
+        }
+
+
+        /* ==========================================
+           RESPONSIVE
+        ========================================== */
+
+        @media (max-width: 900px) {
+
+            .detalle-obra {
+                grid-template-columns: 1fr;
+            }
+
+            .perfil-interior {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .perfil-numeros,
+            .perfil-acciones {
+                justify-content: center;
+            }
+
+        }
+
+
+        @media (max-width: 800px) {
+
+            nav {
+
+                position: absolute;
+
+                flex-direction: column;
+
+                gap: 10px;
+            }
+
+
+            .menu {
+
+                gap: 12px;
+
+                flex-wrap: wrap;
+
+                justify-content: center;
+            }
+
+
+            #inicio {
+                padding-top: 140px;
+            }
+
+
+            .pagina {
+                padding: 170px 5% 60px;
+            }
+
+
+            #registro,
+            .fondo-formulario {
+                padding-top: 160px;
+            }
+
+
+            #registro::before,
+            .fondo-formulario::before {
+                top: 135px;
+                letter-spacing: 12px;
+                font-size: 26px;
+            }
+
+
+            .inicio-contenido {
+
+                flex-direction: column;
+
+                text-align: center;
+            }
+
+
+            .inicio-logo,
+            .inicio-texto {
+
+                width: 100%;
+            }
+
+
+            .inicio-botones {
+                justify-content: center;
+            }
+
+
+            .inicio-texto h1 {
+
+                font-size: 43px;
+            }
+
+
+            .tarjetas,
+            .galeria {
+
+                grid-template-columns: 1fr;
+            }
+
+
+            .filtros,
+            .filtros.dos {
+                grid-template-columns: 1fr;
+            }
+
+
+            .formulario {
+
+                grid-template-columns: 1fr;
+            }
+
+
+            .campo-completo,
+            .foto,
+            .boton-registro,
+            .mensaje,
+            .casilla,
+            .separador,
+            .vista-previa {
+
+                grid-column: 1;
+            }
+
+
+            .marco-interior {
+
+                padding: 20px;
+            }
+
+
+            .registro-titulo {
+
+                font-size: 34px;
+            }
+
+
+            .form-comentario {
+                flex-direction: column;
+            }
+
+
+            .titulo {
+                font-size: 32px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <!-- ==========================================
+         MENÚ
+         (los enlaces cambian según quién inició sesión)
+    ========================================== -->
+
+    <nav>
+
+        <a href="#inicio" class="logo-texto">
+            🎨 Trazos Libres
+        </a>
+
+        <ul class="menu" id="menu">
+            <!-- Se completa con JavaScript -->
+        </ul>
+
+    </nav>
+
+
+
+    <!-- ==========================================
+         VISTA: INICIO
+         (portada, nosotros y galería de recientes)
+    ========================================== -->
+
+    <div class="vista" id="vista-inicio">
+
+
+        <section id="inicio">
+
+
+            <span class="decoracion d1">🎨</span>
+
+            <span class="decoracion d2">✏️</span>
+
+            <span class="decoracion d3">🌸</span>
+
+            <span class="decoracion d4">⭐</span>
+
+
+            <div class="inicio-contenido">
+
+
+                <div class="inicio-logo">
+
+                    <img
+                        src="img/portada.jpg"
+                        alt="Ilustración de portada de Trazos Libres"
+                    >
+
+                </div>
+
+
+                <div class="inicio-texto">
+
+                    <h1>
+                        Trazos Libres
+                    </h1>
+
+                    <h2>
+                        Dibuja · Comparte · Conecta
+                    </h2>
+
+                    <p>
+                        Bienvenido a un espacio donde la imaginación
+                        cobra vida. Comparte tus dibujos, descubre
+                        nuevos artistas y forma parte de una comunidad
+                        apasionada por el arte.
+                    </p>
+
+                    <div class="inicio-botones">
+
+                        <a
+                            href="#registro"
+                            class="boton"
+                            id="botonInicio"
+                        >
+                            ✨ Crear mi cuenta
+                        </a>
+
+                        <a
+                            href="#explorar"
+                            class="boton boton-sec"
+                        >
+                            🖼️ Explorar dibujos
+                        </a>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </section>
+
+
+        <!-- SOBRE NOSOTROS -->
+
+        <section id="sobre">
+
+            <h2 class="titulo">
+                Un lugar para dejar volar tu imaginación
+            </h2>
+
+            <p class="descripcion">
+
+                Trazos Libres es una comunidad pensada para artistas
+                y personas que disfrutan del dibujo. Aquí puedes
+                compartir tus creaciones, encontrar inspiración y
+                conocer personas con intereses similares.
+
+            </p>
+
+
+            <div class="tarjetas">
+
+
+                <div class="tarjeta">
+
+                    <div class="icono">
+                        🎨
+                    </div>
+
+                    <h3>
+                        Crea
+                    </h3>
+
+                    <p>
+                        Convierte tus ideas en dibujos e
+                        ilustraciones y arma tu propio portafolio.
+                    </p>
+
+                </div>
+
+
+                <div class="tarjeta">
+
+                    <div class="icono">
+                        💜
+                    </div>
+
+                    <h3>
+                        Imagina
+                    </h3>
+
+                    <p>
+                        Explora mundos, personajes e historias
+                        creadas por la comunidad.
+                    </p>
+
+                </div>
+
+
+                <div class="tarjeta">
+
+                    <div class="icono">
+                        🌸
+                    </div>
+
+                    <h3>
+                        Conecta
+                    </h3>
+
+                    <p>
+                        Comparte tu arte, sigue a otros artistas
+                        y recibe comentarios que te ayuden a crecer.
+                    </p>
+
+                </div>
+
+
+            </div>
+
+        </section>
+
+
+        <!-- GALERÍA -->
+
+        <section id="galeria">
+
+            <h2 class="titulo">
+                Galería de artistas
+            </h2>
+
+            <p class="descripcion">
+
+                Los dibujos más recientes de nuestra comunidad.
+                Aquí no hay algoritmos: todas las obras aparecen
+                en el orden en que fueron publicadas. 🌸
+
+            </p>
+
+
+            <div class="galeria" id="galeriaInicio">
+                <!-- Se completa con JavaScript -->
+            </div>
+
+
+            <a href="#explorar" class="boton">
+                🖼️ Ver todas las obras
+            </a>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: EXPLORAR DIBUJOS
+    ========================================== -->
+
+    <div class="vista" id="vista-explorar">
+
+        <section class="pagina">
+
+            <div class="pagina-encabezado">
+
+                <h2 class="titulo">
+                    🖼️ Explorar dibujos
+                </h2>
+
+                <p class="descripcion">
+                    Busca obras por título, etiqueta o artista,
+                    y filtra por categoría o técnica.
+                </p>
+
+            </div>
+
+
+            <div class="filtros">
+
+                <input
+                    type="search"
+                    id="buscarObra"
+                    placeholder="🔍 Buscar por título, etiqueta o artista..."
+                >
+
+                <select id="filtroCategoria">
+                    <!-- Se completa con JavaScript -->
+                </select>
+
+                <select id="filtroTecnica">
+                    <!-- Se completa con JavaScript -->
+                </select>
+
+            </div>
+
+
+            <p class="contador" id="contadorObras"></p>
+
+
+            <div class="rejilla-obras" id="rejillaExplorar">
+                <!-- Se completa con JavaScript -->
+            </div>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: ARTISTAS
+    ========================================== -->
+
+    <div class="vista" id="vista-artistas">
+
+        <section class="pagina">
+
+            <div class="pagina-encabezado">
+
+                <h2 class="titulo">
+                    🌸 Artistas de la comunidad
+                </h2>
+
+                <p class="descripcion">
+                    Conoce a quienes forman parte de Trazos Libres
+                    y descubre su portafolio.
+                </p>
+
+            </div>
+
+
+            <div class="filtros dos">
+
+                <input
+                    type="search"
+                    id="buscarArtista"
+                    placeholder="🔍 Buscar por nombre, especialidad o ciudad..."
+                >
+
+                <select id="filtroCategoriaArtista">
+                    <!-- Se completa con JavaScript -->
+                </select>
+
+            </div>
+
+
+            <div class="rejilla-artistas" id="rejillaArtistas">
+                <!-- Se completa con JavaScript -->
+            </div>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: INICIAR SESIÓN
+    ========================================== -->
+
+    <div class="vista" id="vista-login">
+
+        <section class="fondo-formulario">
+
+            <div class="marco-registro angosto">
+
+                <div class="marco-interior">
+
+
+                    <h2 class="registro-titulo">
+                        INICIAR SESIÓN
+                    </h2>
+
+
+                    <p class="registro-subtitulo">
+                        ¡Qué bueno verte de nuevo! 🎨
+                    </p>
+
+
+                    <form
+                        class="formulario una-columna"
+                        id="formularioLogin"
+                    >
+
+
+                        <!-- CORREO -->
+
+                        <div class="campo">
+
+                            <label for="loginCorreo">
+                                Correo electrónico
+                            </label>
+
+                            <input
+                                type="email"
+                                id="loginCorreo"
+                                placeholder="ejemplo@correo.com"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- CONTRASEÑA -->
+
+                        <div class="campo">
+
+                            <label for="loginContrasena">
+                                Contraseña
+                            </label>
+
+                            <input
+                                type="password"
+                                id="loginContrasena"
+                                placeholder="Escribe tu contraseña"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- MENSAJE -->
+
+                        <div
+                            id="mensajeLogin"
+                            class="mensaje"
+                        ></div>
+
+
+                        <!-- BOTÓN -->
+
+                        <div class="boton-registro">
+
+                            <button type="submit">
+                                🔑 ENTRAR
+                            </button>
+
+                        </div>
+
+
+                        <p class="enlace-formulario">
+                            ¿Todavía no tienes cuenta?
+                            <a href="#registro">Créala aquí ✨</a>
+                        </p>
+
+
+                    </form>
+
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: CREAR CUENTA
+    ========================================== -->
+
+    <div class="vista" id="vista-registro">
+
+        <section id="registro">
+
+
+            <div class="marco-registro">
+
+                <div class="marco-interior">
+
+
+                    <h2 class="registro-titulo">
+                        CREAR CUENTA
+                    </h2>
+
+
+                    <p class="registro-subtitulo">
+                        ¡Únete a nuestra comunidad de artistas! 🎨
+                    </p>
+
+
+                    <form
+                        class="formulario"
+                        id="formularioRegistro"
+                    >
+
+
+                        <!-- NOMBRE -->
+
+                        <div class="campo">
+
+                            <label for="nombre">
+                                Nombre completo
+                            </label>
+
+                            <input
+                                type="text"
+                                id="nombre"
+                                placeholder="Escribe tu nombre"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- NOMBRE ARTÍSTICO -->
+
+                        <div class="campo">
+
+                            <label for="artistico">
+                                Nombre artístico
+                                <small>(opcional)</small>
+                            </label>
+
+                            <input
+                                type="text"
+                                id="artistico"
+                                placeholder="Tu nombre artístico"
+                            >
+
+                        </div>
+
+
+                        <!-- CORREO -->
+
+                        <div class="campo campo-completo">
+
+                            <label for="correo">
+                                Correo electrónico
+                            </label>
+
+                            <input
+                                type="email"
+                                id="correo"
+                                placeholder="ejemplo@correo.com"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- CONTRASEÑA -->
+
+                        <div class="campo">
+
+                            <label for="contrasena">
+                                Contraseña
+                            </label>
+
+                            <input
+                                type="password"
+                                id="contrasena"
+                                placeholder="Crea una contraseña"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- CONFIRMAR CONTRASEÑA -->
+
+                        <div class="campo">
+
+                            <label for="confirmacion">
+                                Confirmar contraseña
+                            </label>
+
+                            <input
+                                type="password"
+                                id="confirmacion"
+                                placeholder="Repite tu contraseña"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- FOTO -->
+
+                        <div class="foto">
+
+                            <div class="foto-icono" id="fotoRegistroVista">
+                                📷
+                            </div>
+
+                            <div>
+
+                                <label for="foto">
+                                    Fotografía de perfil
+                                </label>
+
+                                <br>
+
+                                <input
+                                    type="file"
+                                    id="foto"
+                                    accept="image/*"
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- CATEGORÍA -->
+
+                        <div class="campo campo-completo">
+
+                            <label for="categoria">
+                                Categoría artística
+                            </label>
+
+                            <select
+                                id="categoria"
+                                required
+                            >
+                                <!-- Se completa con JavaScript -->
+                            </select>
+
+                        </div>
+
+
+                        <!-- MENSAJE -->
+
+                        <div
+                            id="mensaje"
+                            class="mensaje"
+                        ></div>
+
+
+                        <!-- BOTÓN -->
+
+                        <div class="boton-registro">
+
+                            <button type="submit">
+                                ✨ REGISTRARSE
+                            </button>
+
+                        </div>
+
+
+                        <p class="enlace-formulario">
+                            ¿Ya tienes una cuenta?
+                            <a href="#login">Inicia sesión 🔑</a>
+                        </p>
+
+
+                    </form>
+
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: PERFIL DEL ARTISTA
+    ========================================== -->
+
+    <div class="vista" id="vista-perfil">
+
+        <section class="pagina" id="contenidoPerfil">
+            <!-- Se completa con JavaScript -->
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: EDITAR PERFIL
+    ========================================== -->
+
+    <div class="vista" id="vista-editar-perfil">
+
+        <section class="fondo-formulario">
+
+            <div class="marco-registro">
+
+                <div class="marco-interior">
+
+
+                    <h2 class="registro-titulo">
+                        EDITAR PERFIL
+                    </h2>
+
+
+                    <p class="registro-subtitulo">
+                        Cuéntale al mundo quién eres como artista 🖌️
+                    </p>
+
+
+                    <form
+                        class="formulario"
+                        id="formularioPerfil"
+                    >
+
+
+                        <h3 class="separador">
+                            🌸 Datos básicos
+                        </h3>
+
+
+                        <div class="campo">
+
+                            <label for="perNombre">
+                                Nombre completo
+                            </label>
+
+                            <input
+                                type="text"
+                                id="perNombre"
+                                required
+                            >
+
+                        </div>
+
+
+                        <div class="campo">
+
+                            <label for="perArtistico">
+                                Nombre artístico
+                                <small>(opcional)</small>
+                            </label>
+
+                            <input
+                                type="text"
+                                id="perArtistico"
+                            >
+
+                        </div>
+
+
+                        <div class="foto">
+
+                            <div class="foto-icono" id="fotoPerfilVista">
+                                📷
+                            </div>
+
+                            <div>
+
+                                <label for="perFoto">
+                                    Cambiar fotografía de perfil
+                                </label>
+
+                                <br>
+
+                                <input
+                                    type="file"
+                                    id="perFoto"
+                                    accept="image/*"
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="campo">
+
+                            <label for="perCategoria">
+                                Categoría artística
+                            </label>
+
+                            <select
+                                id="perCategoria"
+                                required
+                            >
+                                <!-- Se completa con JavaScript -->
+                            </select>
+
+                        </div>
+
+
+                        <div class="campo">
+
+                            <label for="perCiudad">
+                                Ciudad y país
+                            </label>
+
+                            <input
+                                type="text"
+                                id="perCiudad"
+                                placeholder="Ej.: Tarija, Bolivia"
+                            >
+
+                        </div>
+
+
+                        <div class="campo campo-completo">
+
+                            <label for="perEspecialidad">
+                                Especialidad
+                            </label>
+
+                            <input
+                                type="text"
+                                id="perEspecialidad"
+                                placeholder="Ej.: Retratos a lápiz, ilustración infantil..."
+                            >
+
+                        </div>
+
+
+                        <div class="campo campo-completo">
+
+                            <label for="perBio">
+                                Biografía
+                            </label>
+
+                            <textarea
+                                id="perBio"
+                                rows="4"
+                                placeholder="Cuéntanos sobre ti y tu arte"
+                            ></textarea>
+
+                        </div>
+
+
+                        <h3 class="separador">
+                            💬 Redes de contacto
+                        </h3>
+
+
+                        <div class="campo">
+
+                            <label for="perInstagram">
+                                Instagram
+                            </label>
+
+                            <input
+                                type="text"
+                                id="perInstagram"
+                                placeholder="@tuusuario"
+                            >
+
+                        </div>
+
+
+                        <div class="campo">
+
+                            <label for="perTiktok">
+                                TikTok
+                            </label>
+
+                            <input
+                                type="text"
+                                id="perTiktok"
+                                placeholder="@tuusuario"
+                            >
+
+                        </div>
+
+
+                        <div class="campo campo-completo">
+
+                            <label for="perOtraRed">
+                                Otro contacto
+                                <small>(correo público, página web, etc.)</small>
+                            </label>
+
+                            <input
+                                type="text"
+                                id="perOtraRed"
+                            >
+
+                        </div>
+
+
+                        <h3 class="separador">
+                            🎓 Trayectoria
+                        </h3>
+
+
+                        <div class="campo campo-completo">
+
+                            <label for="perFormacion">
+                                Información académica
+                            </label>
+
+                            <textarea
+                                id="perFormacion"
+                                rows="3"
+                                placeholder="Cursos, talleres, estudios..."
+                            ></textarea>
+
+                        </div>
+
+
+                        <div class="campo campo-completo">
+
+                            <label for="perExposiciones">
+                                Exposiciones
+                            </label>
+
+                            <textarea
+                                id="perExposiciones"
+                                rows="3"
+                                placeholder="Ferias, concursos, muestras en las que participaste..."
+                            ></textarea>
+
+                        </div>
+
+
+                        <div class="campo campo-completo">
+
+                            <label for="perExperiencia">
+                                Experiencia
+                            </label>
+
+                            <textarea
+                                id="perExperiencia"
+                                rows="3"
+                                placeholder="Encargos, comisiones, trabajos realizados..."
+                            ></textarea>
+
+                        </div>
+
+
+                        <!-- MENSAJE -->
+
+                        <div
+                            id="mensajePerfil"
+                            class="mensaje"
+                        ></div>
+
+
+                        <!-- BOTÓN -->
+
+                        <div class="boton-registro">
+
+                            <button type="submit">
+                                💾 GUARDAR CAMBIOS
+                            </button>
+
+                        </div>
+
+
+                        <p class="enlace-formulario">
+                            <a href="#perfil">← Volver a mi perfil</a>
+                        </p>
+
+
+                    </form>
+
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: PUBLICAR / EDITAR DIBUJO
+    ========================================== -->
+
+    <div class="vista" id="vista-publicar">
+
+        <section class="fondo-formulario">
+
+            <div class="marco-registro">
+
+                <div class="marco-interior">
+
+
+                    <h2 class="registro-titulo" id="tituloPublicar">
+                        PUBLICAR DIBUJO
+                    </h2>
+
+
+                    <p class="registro-subtitulo">
+                        ¡Comparte tu arte con la comunidad! 🖌️
+                    </p>
+
+
+                    <form
+                        class="formulario"
+                        id="formularioPublicar"
+                    >
+
+
+                        <!-- VISTA PREVIA DE LA IMAGEN -->
+
+                        <div class="vista-previa" id="pubVistaPrevia">
+
+                            <div class="icono">🖼️</div>
+
+                            <p>Aquí aparecerá tu dibujo</p>
+
+                        </div>
+
+
+                        <!-- IMAGEN -->
+
+                        <div class="campo campo-completo">
+
+                            <label for="pubImagen">
+                                Imagen del dibujo
+                            </label>
+
+                            <input
+                                type="file"
+                                id="pubImagen"
+                                accept="image/*"
+                            >
+
+                            <span class="ayuda">
+                                Formatos JPG, PNG o WEBP. La imagen se optimiza
+                                automáticamente para que cargue rápido.
+                            </span>
+
+                        </div>
+
+
+                        <!-- TÍTULO -->
+
+                        <div class="campo campo-completo">
+
+                            <label for="pubTitulo">
+                                Título
+                            </label>
+
+                            <input
+                                type="text"
+                                id="pubTitulo"
+                                maxlength="80"
+                                placeholder="Ponle un nombre a tu obra"
+                                required
+                            >
+
+                        </div>
+
+
+                        <!-- DESCRIPCIÓN -->
+
+                        <div class="campo campo-completo">
+
+                            <label for="pubDescripcion">
+                                Descripción
+                                <small>(opcional)</small>
+                            </label>
+
+                            <textarea
+                                id="pubDescripcion"
+                                rows="4"
+                                maxlength="1000"
+                                placeholder="¿Qué te inspiró? ¿Cómo lo hiciste?"
+                            ></textarea>
+
+                        </div>
+
+
+                        <!-- CATEGORÍA -->
+
+                        <div class="campo">
+
+                            <label for="pubCategoria">
+                                Categoría
+                            </label>
+
+                            <select
+                                id="pubCategoria"
+                                required
+                            >
+                                <!-- Se completa con JavaScript -->
+                            </select>
+
+                        </div>
+
+
+                        <!-- TÉCNICA -->
+
+                        <div class="campo">
+
+                            <label for="pubTecnica">
+                                Técnica
+                            </label>
+
+                            <select
+                                id="pubTecnica"
+                                required
+                            >
+                                <!-- Se completa con JavaScript -->
+                            </select>
+
+                        </div>
+
+
+                        <!-- ETIQUETAS -->
+
+                        <div class="campo campo-completo">
+
+                            <label for="pubEtiquetas">
+                                Etiquetas
+                                <small>(separadas por comas)</small>
+                            </label>
+
+                            <input
+                                type="text"
+                                id="pubEtiquetas"
+                                placeholder="Ej.: gato, kawaii, acuarela"
+                            >
+
+                        </div>
+
+
+                        <!-- MARCA DE AGUA -->
+
+                        <label class="casilla" id="casillaMarca">
+
+                            <input
+                                type="checkbox"
+                                id="pubMarca"
+                                checked
+                            >
+
+                            🛡️ Agregar marca de agua con mi nombre para proteger mi autoría
+
+                        </label>
+
+
+                        <!-- MENSAJE -->
+
+                        <div
+                            id="mensajePublicar"
+                            class="mensaje"
+                        ></div>
+
+
+                        <!-- BOTÓN -->
+
+                        <div class="boton-registro">
+
+                            <button
+                                type="submit"
+                                id="botonPublicar"
+                            >
+                                ✨ PUBLICAR
+                            </button>
+
+                        </div>
+
+
+                    </form>
+
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: VER UNA PUBLICACIÓN
+    ========================================== -->
+
+    <div class="vista" id="vista-obra">
+
+        <section class="pagina" id="contenidoObra">
+            <!-- Se completa con JavaScript -->
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         VISTA: PANEL DE ADMINISTRACIÓN
+    ========================================== -->
+
+    <div class="vista" id="vista-admin">
+
+        <section class="pagina">
+
+            <div class="pagina-encabezado">
+
+                <h2 class="titulo">
+                    🛠️ Panel de administración
+                </h2>
+
+                <p class="descripcion">
+                    Gestiona usuarios, publicaciones, categorías,
+                    comentarios y reportes de la comunidad.
+                </p>
+
+            </div>
+
+
+            <div class="admin-pestanas" id="pestanasAdmin">
+                <!-- Se completa con JavaScript -->
+            </div>
+
+
+            <div id="contenidoAdmin">
+                <!-- Se completa con JavaScript -->
+            </div>
+
+        </section>
+
+    </div>
+
+
+
+    <!-- ==========================================
+         FOOTER
+    ========================================== -->
+
+    <footer>
+
+        <p>
+            🎨 Trazos Libres
+        </p>
+
+        <p>
+            Dibuja · Comparte · Conecta
+        </p>
+
+        <p>
+            © 2026 Trazos Libres
+        </p>
+
+    </footer>
+
+
+    <!-- Aviso flotante -->
+
+    <div class="aviso" id="aviso"></div>
+
+
+
+    <!-- ==========================================
+         JAVASCRIPT
+    ========================================== -->
+
+    <!-- Librería oficial de Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+    <script>
+
+
+        /* ==========================================
+           CONFIGURACIÓN DE SUPABASE
+           (la clave pública "anon" está pensada para
+           usarse en el navegador; la seguridad real la
+           dan las políticas RLS de la base de datos)
+        ========================================== */
+
+        const SUPABASE_URL = "https://tuikngrifkdrlgqwucbx.supabase.co";
+
+        const SUPABASE_KEY = "sb_publishable_Rs6NLmOGWel7K-iXPmYYsA_QRkZmMp7";
+
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const CARPETA_IMAGENES = "obras";
+
+
+        /* ==========================================
+           DATOS GENERALES
+        ========================================== */
+
+        const TECNICAS = [
+            "Lápiz grafito",
+            "Lápices de colores",
+            "Marcadores",
+            "Tinta",
+            "Acuarela",
+            "Acrílico",
+            "Óleo",
+            "Digital (tableta gráfica)",
+            "Digital (celular)",
+            "Técnica mixta",
+            "Otra"
+        ];
+
+        /* Columnas que se piden de cada publicación,
+           junto con su autor, categoría y etiquetas */
+
+        const COLUMNAS_OBRA =
+            "id, titulo, descripcion, imagen_url, imagen_ruta, tecnica, estado, creado_en, " +
+            "categoria_id, autor_id, " +
+            "autor:perfiles(id, nombre, artistico, foto_url, estado), " +
+            "categoria:categorias(nombre), " +
+            "publicacion_etiqueta(etiquetas(nombre))";
+
+
+        /* Perfil del usuario que inició sesión (o null) */
+        let yo = null;
+
+        /* Lista de categorías */
+        let categorias = [];
+
+        /* Si se está editando un dibujo, aquí va su id */
+        let edicionId = null;
+
+        /* Copias en memoria para filtrar sin volver a consultar */
+        let obrasExplorar = [];
+        let artistasLista = [];
+
+
+        /* ==========================================
+           UTILIDADES
+        ========================================== */
+
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+
+        /* Evita que el texto escrito por los usuarios
+           se interprete como código HTML */
+
+        function esc(texto) {
+
+            return String(texto ?? "").replace(
+                /[&<>"']/g,
+                function (c) {
+                    return {
+                        "&": "&amp;",
+                        "<": "&lt;",
+                        ">": "&gt;",
+                        '"': "&quot;",
+                        "'": "&#39;"
+                    }[c];
+                }
+            );
+        }
+
+
+        function formatoFecha(fecha) {
+
+            return new Date(fecha).toLocaleDateString(
+                "es-BO",
+                {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric"
+                }
+            );
+        }
+
+
+        function mostrarMensaje(elemento, texto, tipo) {
+
+            elemento.textContent = texto;
+
+            elemento.className = "mensaje " + tipo;
+        }
+
+
+        /* Aviso flotante que desaparece solo */
+
+        let temporizadorAviso = null;
+
+        function avisar(texto, tipo = "exito") {
+
+            const aviso = $("aviso");
+
+            aviso.textContent = texto;
+
+            aviso.className = "aviso visible " + tipo;
+
+            clearTimeout(temporizadorAviso);
+
+            temporizadorAviso = setTimeout(function () {
+                aviso.className = "aviso " + tipo;
+            }, 3500);
+        }
+
+
+        /* Muestra un error de conexión de forma amigable */
+
+        function fallo(error, texto) {
+
+            console.error(error);
+
+            avisar(texto || "❌ Ocurrió un problema de conexión. Inténtalo de nuevo.", "error");
+        }
+
+
+        function cargandoHTML() {
+            return '<div class="vacio"><div class="icono">⏳</div><p>Cargando...</p></div>';
+        }
+
+
+        function vacioHTML(icono, texto, boton = "") {
+
+            return (
+                '<div class="vacio">' +
+                    '<div class="icono">' + icono + "</div>" +
+                    "<p>" + texto + "</p>" +
+                    boton +
+                "</div>"
+            );
+        }
+
+
+        function nombreVisible(perfil) {
+
+            if (!perfil) {
+                return "Usuario eliminado";
+            }
+
+            return perfil.artistico || perfil.nombre;
+        }
+
+
+        function avatarHTML(perfil, clase = "") {
+
+            if (perfil && perfil.foto_url) {
+                return '<img class="avatar ' + clase + '" src="' + esc(perfil.foto_url) + '" alt="Foto de ' + esc(nombreVisible(perfil)) + '">';
+            }
+
+            const inicial = nombreVisible(perfil).charAt(0).toUpperCase();
+
+            return '<div class="avatar avatar-letra ' + clase + '">' + esc(inicial) + "</div>";
+        }
+
+
+        function nombreCategoria(id) {
+
+            const c = categorias.find(x => x.id === id);
+
+            return c ? c.nombre : "Sin categoría";
+        }
+
+
+        function etiquetasDe(obra) {
+
+            return (obra.publicacion_etiqueta || [])
+                .map(r => r.etiquetas && r.etiquetas.nombre)
+                .filter(Boolean);
+        }
+
+
+        /* Llena un <select> con las categorías */
+
+        function llenarCategorias(select, textoPrimero) {
+
+            let opciones = '<option value="">' + textoPrimero + "</option>";
+
+            for (const c of categorias) {
+                opciones += '<option value="' + c.id + '">' + esc(c.nombre) + "</option>";
+            }
+
+            const valorAnterior = select.value;
+
+            select.innerHTML = opciones;
+
+            select.value = valorAnterior;
+        }
+
+
+        function llenarTecnicas(select, textoPrimero) {
+
+            let opciones = '<option value="">' + textoPrimero + "</option>";
+
+            for (const t of TECNICAS) {
+                opciones += "<option>" + esc(t) + "</option>";
+            }
+
+            const valorAnterior = select.value;
+
+            select.innerHTML = opciones;
+
+            select.value = valorAnterior;
+        }
+
+
+        function tarjetaObra(p, mostrarEstado = false) {
+
+            return (
+                '<a class="obra-card" href="#obra/' + p.id + '">' +
+                    '<img src="' + esc(p.imagen_url) + '" alt="' + esc(p.titulo) + '" loading="lazy">' +
+                    '<div class="obra-info">' +
+                        "<h4>" + esc(p.titulo) + "</h4>" +
+                        '<span class="autor">por ' + esc(nombreVisible(p.autor)) + "</span>" +
+                        '<span class="chip">' + esc(nombreCategoria(p.categoria_id)) + "</span>" +
+                        '<span class="chip azul">' + esc(p.tecnica) + "</span>" +
+                        (mostrarEstado && p.estado !== "visible"
+                            ? '<br><span class="etiqueta-oculta">🙈 Oculta por el administrador</span>'
+                            : "") +
+                    "</div>" +
+                "</a>"
+            );
+        }
+
+
+        /* ==========================================
+           IMÁGENES
+           Se reducen de tamaño (para cargar rápido),
+           opcionalmente llevan marca de agua y se
+           suben al almacenamiento de Supabase.
+        ========================================== */
+
+        function procesarImagen(archivo, ladoMaximo, textoMarca) {
+
+            return new Promise(function (resolver, rechazar) {
+
+                const imagen = new Image();
+
+                const direccion = URL.createObjectURL(archivo);
+
+                imagen.onerror = rechazar;
+
+                imagen.onload = function () {
+
+                    const escala = Math.min(
+                        1,
+                        ladoMaximo / Math.max(imagen.width, imagen.height)
+                    );
+
+                    const ancho = Math.round(imagen.width * escala);
+
+                    const alto = Math.round(imagen.height * escala);
+
+                    const lienzo = document.createElement("canvas");
+
+                    lienzo.width = ancho;
+
+                    lienzo.height = alto;
+
+                    const ctx = lienzo.getContext("2d");
+
+                    ctx.fillStyle = "#FFFFFF";
+
+                    ctx.fillRect(0, 0, ancho, alto);
+
+                    ctx.drawImage(imagen, 0, 0, ancho, alto);
+
+
+                    /* Marca de agua en la esquina inferior derecha */
+
+                    if (textoMarca) {
+
+                        const tamano = Math.max(14, Math.round(ancho / 28));
+
+                        ctx.font = "bold " + tamano + "px Trebuchet MS, sans-serif";
+
+                        ctx.textAlign = "right";
+
+                        ctx.textBaseline = "bottom";
+
+                        ctx.lineWidth = Math.max(2, tamano / 7);
+
+                        ctx.strokeStyle = "rgba(81, 71, 90, 0.55)";
+
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+
+                        const x = ancho - tamano * 0.6;
+
+                        const y = alto - tamano * 0.5;
+
+                        ctx.strokeText(textoMarca, x, y);
+
+                        ctx.fillText(textoMarca, x, y);
+                    }
+
+                    URL.revokeObjectURL(direccion);
+
+                    lienzo.toBlob(
+                        function (blob) {
+                            blob ? resolver(blob) : rechazar(new Error("No se pudo convertir la imagen"));
+                        },
+                        "image/jpeg",
+                        0.85
+                    );
+                };
+
+                imagen.src = direccion;
+            });
+        }
+
+
+        /* Sube la imagen a la carpeta del usuario: obras/<id>/... */
+
+        async function subirImagen(blob, prefijo) {
+
+            const ruta =
+                yo.id + "/" + prefijo + "-" + Date.now() + "-" +
+                Math.random().toString(36).slice(2, 8) + ".jpg";
+
+            const { error } = await sb.storage
+                .from(CARPETA_IMAGENES)
+                .upload(ruta, blob, { contentType: "image/jpeg" });
+
+            if (error) {
+                throw error;
+            }
+
+            const { data } = sb.storage.from(CARPETA_IMAGENES).getPublicUrl(ruta);
+
+            return { ruta: ruta, url: data.publicUrl };
+        }
+
+
+        async function borrarImagen(ruta) {
+
+            if (ruta) {
+                await sb.storage.from(CARPETA_IMAGENES).remove([ruta]);
+            }
+        }
+
+
+        /* Obtiene la ruta interna a partir de la URL pública */
+
+        function rutaDesdeUrl(url) {
+
+            const marca = "/" + CARPETA_IMAGENES + "/";
+
+            const posicion = url ? url.indexOf(marca) : -1;
+
+            return posicion >= 0 ? url.slice(posicion + marca.length) : null;
+        }
+
+
+        /* ==========================================
+           SESIÓN
+        ========================================== */
+
+        async function cargarSesion() {
+
+            yo = null;
+
+            const { data } = await sb.auth.getSession();
+
+            if (!data.session) {
+                return;
+            }
+
+            const { data: perfil, error } = await sb
+                .from("perfiles")
+                .select("*")
+                .eq("id", data.session.user.id)
+                .maybeSingle();
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            if (perfil && perfil.estado === "activo") {
+
+                yo = perfil;
+
+            } else {
+
+                /* Cuenta suspendida o eliminada: se cierra la sesión */
+
+                await sb.auth.signOut();
+
+                if (perfil) {
+                    avisar("⛔ Tu cuenta está suspendida. Comunícate con el administrador.", "error");
+                }
+            }
+        }
+
+
+        async function cargarCategorias() {
+
+            const { data, error } = await sb
+                .from("categorias")
+                .select("*")
+                .order("id");
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            categorias = data;
+        }
+
+
+        async function cerrarSesion() {
+
+            await sb.auth.signOut();
+
+            yo = null;
+
+            avisar("👋 Cerraste sesión. ¡Vuelve pronto!");
+
+            if (location.hash === "#inicio") {
+                navegar();
+            } else {
+                location.hash = "#inicio";
+            }
+        }
+
+
+        function pedirSesion() {
+
+            avisar("🔑 Primero inicia sesión para continuar.", "error");
+
+            location.hash = "#login";
+        }
+
+
+        /* ==========================================
+           MENÚ
+        ========================================== */
+
+        function actualizarMenu() {
+
+            const ruta = (location.hash.replace("#", "") || "inicio").split("/")[0];
+
+            const enlaces = [
+                ["inicio", "Inicio"],
+                ["explorar", "Explorar"],
+                ["artistas", "Artistas"]
+            ];
+
+            if (!yo) {
+
+                enlaces.push(["login", "Iniciar sesión"]);
+
+                enlaces.push(["registro", "✨ Crear cuenta", "menu-boton"]);
+
+            } else if (yo.rol === "admin") {
+
+                enlaces.push(["admin", "🛠️ Administración"]);
+
+                enlaces.push(["salir", "Cerrar sesión"]);
+
+            } else {
+
+                enlaces.push(["publicar", "✨ Publicar", "menu-boton"]);
+
+                enlaces.push(["perfil", "Mi perfil"]);
+
+                enlaces.push(["salir", "Cerrar sesión"]);
+            }
+
+            $("menu").innerHTML = enlaces.map(function ([destino, texto, clase]) {
+
+                if (destino === "salir") {
+                    return '<li><a href="#" onclick="cerrarSesion(); return false;">' + texto + "</a></li>";
+                }
+
+                let clases = clase || "";
+
+                if (destino === ruta && !clase) {
+                    clases += " activo";
+                }
+
+                return '<li><a href="#' + destino + '" class="' + clases + '">' + texto + "</a></li>";
+
+            }).join("");
+
+
+            /* El botón grande de la portada también cambia */
+
+            const botonInicio = $("botonInicio");
+
+            if (yo && yo.rol !== "admin") {
+                botonInicio.href = "#publicar";
+                botonInicio.textContent = "✨ Publicar un dibujo";
+            } else if (yo) {
+                botonInicio.href = "#admin";
+                botonInicio.textContent = "🛠️ Ir al panel";
+            } else {
+                botonInicio.href = "#registro";
+                botonInicio.textContent = "✨ Crear mi cuenta";
+            }
+        }
+
+
+        /* ==========================================
+           NAVEGACIÓN ENTRE VISTAS
+           Ejemplos de direcciones:
+           #inicio  #explorar  #obra/3  #perfil/<id>  #admin/reportes
+        ========================================== */
+
+        function mostrarVista(nombre) {
+
+            document.querySelectorAll(".vista").forEach(function (v) {
+                v.classList.remove("activa");
+            });
+
+            $("vista-" + nombre).classList.add("activa");
+        }
+
+
+        function navegar() {
+
+            const hash = location.hash.replace("#", "") || "inicio";
+
+            const [ruta, parametro] = hash.split("/");
+
+
+            /* Limpiar mensajes de formularios anteriores */
+
+            document.querySelectorAll("form .mensaje").forEach(function (m) {
+                m.className = "mensaje";
+            });
+
+            actualizarMenu();
+
+
+            /* Secciones de la portada */
+
+            if (["inicio", "sobre", "galeria"].includes(ruta)) {
+
+                mostrarVista("inicio");
+
+                renderGaleriaInicio();
+
+                $(ruta).scrollIntoView();
+
+                return;
+            }
+
+
+            window.scrollTo(0, 0);
+
+
+            switch (ruta) {
+
+                case "explorar":
+                    mostrarVista("explorar");
+                    renderExplorar(true);
+                    break;
+
+                case "artistas":
+                    mostrarVista("artistas");
+                    renderArtistas(true);
+                    break;
+
+                case "login":
+                    if (yo) {
+                        location.hash = "#inicio";
+                        return;
+                    }
+                    mostrarVista("login");
+                    break;
+
+                case "registro":
+                    if (yo) {
+                        location.hash = "#inicio";
+                        return;
+                    }
+                    llenarCategorias($("categoria"), "Selecciona una categoría");
+                    mostrarVista("registro");
+                    break;
+
+                case "perfil":
+                    if (!parametro) {
+                        if (!yo) {
+                            pedirSesion();
+                            return;
+                        }
+                        location.hash = "#perfil/" + yo.id;
+                        return;
+                    }
+                    mostrarVista("perfil");
+                    renderPerfil(parametro);
+                    break;
+
+                case "editar-perfil":
+                    if (!yo) {
+                        pedirSesion();
+                        return;
+                    }
+                    mostrarVista("editar-perfil");
+                    prepararEditarPerfil();
+                    break;
+
+                case "publicar":
+                    if (!yo) {
+                        pedirSesion();
+                        return;
+                    }
+                    mostrarVista("publicar");
+                    prepararPublicar(parametro ? Number(parametro) : null);
+                    break;
+
+                case "obra":
+                    mostrarVista("obra");
+                    renderObra(Number(parametro));
+                    break;
+
+                case "admin":
+                    if (!yo || yo.rol !== "admin") {
+                        avisar("⛔ Solo el administrador puede entrar a esta sección.", "error");
+                        location.hash = "#inicio";
+                        return;
+                    }
+                    mostrarVista("admin");
+                    renderAdmin(parametro || "resumen");
+                    break;
+
+                default:
+                    location.hash = "#inicio";
+            }
+        }
+
+
+        window.addEventListener("hashchange", navegar);
+
+
+        /* ==========================================
+           CONSULTA DE OBRAS PÚBLICAS
+           SIEMPRE en orden cronológico (más nuevas primero)
+        ========================================== */
+
+        async function obrasPublicas(limite) {
+
+            let consulta = sb
+                .from("publicaciones")
+                .select(COLUMNAS_OBRA)
+                .eq("estado", "visible")
+                .order("creado_en", { ascending: false });
+
+            if (limite) {
+                consulta = consulta.limit(limite);
+            }
+
+            const { data, error } = await consulta;
+
+            if (error) {
+                fallo(error);
+                return [];
+            }
+
+            return data.filter(p => p.autor && p.autor.estado === "activo");
+        }
+
+
+        /* ==========================================
+           GALERÍA DE LA PORTADA
+        ========================================== */
+
+        async function renderGaleriaInicio() {
+
+            const recientes = await obrasPublicas(6);
+
+            if (recientes.length === 0) {
+
+                $("galeriaInicio").innerHTML =
+                    '<div class="obra">🎨 Dibujo</div>' +
+                    '<div class="obra">🌸 Ilustración</div>' +
+                    '<div class="obra">💜 Fanart</div>' +
+                    '<div class="obra">🖌️ Pintura</div>' +
+                    '<div class="obra">⭐ Arte digital</div>' +
+                    '<div class="obra">✏️ Boceto</div>';
+
+                return;
+            }
+
+            $("galeriaInicio").innerHTML = recientes.map(p => tarjetaObra(p)).join("");
+        }
+
+
+        /* ==========================================
+           EXPLORAR DIBUJOS
+        ========================================== */
+
+        async function renderExplorar(recargar) {
+
+            llenarCategorias($("filtroCategoria"), "Todas las categorías");
+
+            llenarTecnicas($("filtroTecnica"), "Todas las técnicas");
+
+            if (recargar) {
+
+                $("rejillaExplorar").innerHTML = cargandoHTML();
+
+                $("contadorObras").textContent = "";
+
+                obrasExplorar = await obrasPublicas();
+            }
+
+
+            const texto = $("buscarObra").value.trim().toLowerCase().replace(/^#/, "");
+
+            const categoria = Number($("filtroCategoria").value);
+
+            const tecnica = $("filtroTecnica").value;
+
+
+            const resultado = obrasExplorar.filter(function (p) {
+
+                if (categoria && p.categoria_id !== categoria) {
+                    return false;
+                }
+
+                if (tecnica && p.tecnica !== tecnica) {
+                    return false;
+                }
+
+                if (texto) {
+
+                    const dondeBuscar = [
+                        p.titulo,
+                        p.descripcion,
+                        nombreVisible(p.autor),
+                        etiquetasDe(p).join(" ")
+                    ].join(" ").toLowerCase();
+
+                    return dondeBuscar.includes(texto);
+                }
+
+                return true;
+            });
+
+
+            $("contadorObras").textContent =
+                resultado.length === 1
+                    ? "1 obra encontrada"
+                    : resultado.length + " obras encontradas";
+
+
+            $("rejillaExplorar").innerHTML = resultado.length
+                ? resultado.map(p => tarjetaObra(p)).join("")
+                : vacioHTML(
+                    "🔍",
+                    obrasExplorar.length
+                        ? "No encontramos obras con esos filtros.<br>Prueba con otras palabras."
+                        : "Todavía no hay dibujos publicados.<br>¡Puedes ser la primera persona en compartir uno!"
+                );
+        }
+
+
+        $("buscarObra").addEventListener("input", () => renderExplorar(false));
+
+        $("filtroCategoria").addEventListener("change", () => renderExplorar(false));
+
+        $("filtroTecnica").addEventListener("change", () => renderExplorar(false));
+
+
+        /* Al hacer clic en una etiqueta, se buscan
+           todas las obras que la tienen */
+
+        function buscarEtiqueta(nombre) {
+
+            $("buscarObra").value = nombre;
+
+            $("filtroCategoria").value = "";
+
+            $("filtroTecnica").value = "";
+
+            location.hash = "#explorar";
+        }
+
+
+        /* ==========================================
+           ARTISTAS
+        ========================================== */
+
+        async function renderArtistas(recargar) {
+
+            llenarCategorias($("filtroCategoriaArtista"), "Todas las categorías");
+
+            if (recargar) {
+
+                $("rejillaArtistas").innerHTML = cargandoHTML();
+
+                const { data, error } = await sb
+                    .from("perfiles")
+                    .select("id, nombre, artistico, foto_url, categoria_id, ciudad, especialidad, publicaciones(count)")
+                    .eq("rol", "artista")
+                    .eq("estado", "activo");
+
+                if (error) {
+                    fallo(error);
+                    artistasLista = [];
+                } else {
+                    artistasLista = data;
+                }
+            }
+
+
+            const texto = $("buscarArtista").value.trim().toLowerCase();
+
+            const categoria = Number($("filtroCategoriaArtista").value);
+
+
+            /* Orden alfabético: nadie aparece "primero"
+               por tener más seguidores */
+
+            const artistas = artistasLista
+                .filter(u => !categoria || u.categoria_id === categoria)
+                .filter(function (u) {
+
+                    if (!texto) {
+                        return true;
+                    }
+
+                    return [u.nombre, u.artistico, u.especialidad, u.ciudad]
+                        .join(" ")
+                        .toLowerCase()
+                        .includes(texto);
+                })
+                .sort((a, b) => nombreVisible(a).localeCompare(nombreVisible(b)));
+
+
+            if (artistas.length === 0) {
+
+                $("rejillaArtistas").innerHTML = vacioHTML(
+                    "🌸",
+                    artistasLista.length
+                        ? "No encontramos artistas con esa búsqueda."
+                        : "Todavía no hay artistas registrados.",
+                    artistasLista.length || yo ? "" : '<a class="boton" href="#registro">✨ Crear mi cuenta</a>'
+                );
+
+                return;
+            }
+
+
+            $("rejillaArtistas").innerHTML = artistas.map(function (u) {
+
+                const obras = u.publicaciones && u.publicaciones[0] ? u.publicaciones[0].count : 0;
+
+                return (
+                    '<a class="artista-card" href="#perfil/' + u.id + '">' +
+                        avatarHTML(u, "mediano") +
+                        "<h3>" + esc(nombreVisible(u)) + "</h3>" +
+                        '<span class="chip amarillo">' + esc(nombreCategoria(u.categoria_id)) + "</span>" +
+                        (u.especialidad ? "<p>" + esc(u.especialidad) + "</p>" : "") +
+                        (u.ciudad ? "<p>📍 " + esc(u.ciudad) + "</p>" : "") +
+                        "<p><strong>🖼️ " + obras + (obras === 1 ? " obra" : " obras") + "</strong></p>" +
+                    "</a>"
+                );
+
+            }).join("");
+        }
+
+
+        $("buscarArtista").addEventListener("input", () => renderArtistas(false));
+
+        $("filtroCategoriaArtista").addEventListener("change", () => renderArtistas(false));
+
+
+        /* ==========================================
+           INICIAR SESIÓN
+        ========================================== */
+
+        $("formularioLogin").addEventListener(
+            "submit",
+            async function (event) {
+
+                event.preventDefault();
+
+                const form = this;
+
+                const mensaje = $("mensajeLogin");
+
+                const boton = form.querySelector("button[type=submit]");
+
+                const correo = $("loginCorreo").value.trim().toLowerCase();
+
+                const contrasena = $("loginContrasena").value;
+
+
+                boton.disabled = true;
+
+                const { error } = await sb.auth.signInWithPassword({
+                    email: correo,
+                    password: contrasena
+                });
+
+                boton.disabled = false;
+
+
+                if (error) {
+
+                    if (/not confirmed/i.test(error.message)) {
+                        mostrarMensaje(mensaje, "📧 Primero confirma tu cuenta con el enlace que llegó a tu correo.", "error");
+                    } else if (/rate limit|too many/i.test(error.message)) {
+                        mostrarMensaje(mensaje, "⏳ Demasiados intentos. Espera unos minutos.", "error");
+                    } else {
+                        mostrarMensaje(mensaje, "❌ Correo o contraseña incorrectos.", "error");
+                    }
+
+                    return;
+                }
+
+
+                await cargarSesion();
+
+                if (!yo) {
+
+                    mostrarMensaje(
+                        mensaje,
+                        "❌ Tu cuenta está suspendida. Comunícate con el administrador.",
+                        "error"
+                    );
+
+                    return;
+                }
+
+
+                form.reset();
+
+                avisar("🎉 ¡Hola, " + nombreVisible(yo) + "! Bienvenido de nuevo.");
+
+                location.hash = yo.rol === "admin" ? "#admin" : "#perfil/" + yo.id;
+            }
+        );
+
+
+        /* ==========================================
+           CREAR CUENTA
+        ========================================== */
+
+        /* Vista previa de la foto elegida */
+
+        function previsualizarFoto(input, contenedorId) {
+
+            input.addEventListener("change", function () {
+
+                const archivo = input.files[0];
+
+                if (archivo && archivo.type.startsWith("image/")) {
+                    $(contenedorId).innerHTML = '<img src="' + URL.createObjectURL(archivo) + '" alt="Vista previa">';
+                }
+            });
+        }
+
+        previsualizarFoto($("foto"), "fotoRegistroVista");
+
+        previsualizarFoto($("perFoto"), "fotoPerfilVista");
+
+
+        const formulario = $("formularioRegistro");
+
+        const mensaje = $("mensaje");
+
+
+        formulario.addEventListener(
+            "submit",
+            async function (event) {
+
+                event.preventDefault();
+
+
+                const nombre = $("nombre").value.trim();
+
+                const artistico = $("artistico").value.trim();
+
+                const correo = $("correo").value.trim().toLowerCase();
+
+                const contrasena = $("contrasena").value;
+
+                const confirmacion = $("confirmacion").value;
+
+                const categoria = Number($("categoria").value);
+
+                const archivoFoto = $("foto").files[0];
+
+                const boton = formulario.querySelector("button[type=submit]");
+
+
+                /* =========================
+                   VALIDAR CONTRASEÑAS
+                ========================== */
+
+                if (contrasena !== confirmacion) {
+
+                    mostrarMensaje(mensaje, "❌ Las contraseñas no coinciden.", "error");
+
+                    return;
+                }
+
+
+                /* =========================
+                   VALIDAR CONTRASEÑA
+                ========================== */
+
+                if (contrasena.length < 8) {
+
+                    mostrarMensaje(mensaje, "❌ La contraseña debe tener al menos 8 caracteres.", "error");
+
+                    return;
+                }
+
+
+                /* =========================
+                   VALIDAR CAMPOS
+                ========================== */
+
+                if (nombre === "" || correo === "" || !categoria) {
+
+                    mostrarMensaje(mensaje, "❌ Completa todos los campos obligatorios.", "error");
+
+                    return;
+                }
+
+
+                if (archivoFoto && !archivoFoto.type.startsWith("image/")) {
+
+                    mostrarMensaje(mensaje, "❌ La fotografía de perfil debe ser una imagen.", "error");
+
+                    return;
+                }
+
+
+                /* =========================
+                   CREAR LA CUENTA
+                   (Supabase guarda la contraseña con hash bcrypt)
+                ========================== */
+
+                boton.disabled = true;
+
+                mostrarMensaje(mensaje, "⏳ Creando tu cuenta...", "exito");
+
+                const { data, error } = await sb.auth.signUp({
+                    email: correo,
+                    password: contrasena,
+                    options: {
+                        data: {
+                            nombre: nombre,
+                            artistico: artistico,
+                            categoria_id: String(categoria)
+                        }
+                    }
+                });
+
+                boton.disabled = false;
+
+
+                if (error) {
+
+                    if (/already|registered|exists/i.test(error.message)) {
+                        mostrarMensaje(mensaje, "❌ Ya existe una cuenta con ese correo.", "error");
+                    } else if (/rate limit|too many/i.test(error.message)) {
+                        mostrarMensaje(mensaje, "⏳ Hubo demasiados registros seguidos. Espera unos minutos.", "error");
+                    } else if (/invalid/i.test(error.message)) {
+                        mostrarMensaje(mensaje, "❌ El correo electrónico no es válido.", "error");
+                    } else if (/password/i.test(error.message)) {
+                        mostrarMensaje(mensaje, "❌ La contraseña es muy débil. Usa letras y números.", "error");
+                    } else {
+                        fallo(error);
+                        mostrarMensaje(mensaje, "❌ No pudimos crear la cuenta. Inténtalo de nuevo.", "error");
+                    }
+
+                    return;
+                }
+
+
+                /* Si Supabase pide confirmar el correo,
+                   todavía no hay sesión iniciada */
+
+                if (!data.session) {
+
+                    mostrarMensaje(
+                        mensaje,
+                        "📧 ¡Casi listo! Revisa tu correo y confirma tu cuenta para poder entrar.",
+                        "exito"
+                    );
+
+                    formulario.reset();
+
+                    $("fotoRegistroVista").textContent = "📷";
+
+                    return;
+                }
+
+
+                await cargarSesion();
+
+
+                /* =========================
+                   SUBIR FOTO DE PERFIL
+                ========================== */
+
+                if (archivoFoto && yo) {
+
+                    try {
+
+                        const blob = await procesarImagen(archivoFoto, 300, null);
+
+                        const subida = await subirImagen(blob, "perfil");
+
+                        await sb.from("perfiles").update({ foto_url: subida.url }).eq("id", yo.id);
+
+                        yo.foto_url = subida.url;
+
+                    } catch (e) {
+
+                        fallo(e, "⚠️ La cuenta se creó, pero no pudimos subir la foto. Puedes cambiarla desde tu perfil.");
+                    }
+                }
+
+
+                /* =========================
+                   REGISTRO CORRECTO
+                ========================== */
+
+                mostrarMensaje(
+                    mensaje,
+                    "🎉 ¡Cuenta creada correctamente! Bienvenido a Trazos Libres.",
+                    "exito"
+                );
+
+                formulario.reset();
+
+                $("fotoRegistroVista").textContent = "📷";
+
+                actualizarMenu();
+
+                setTimeout(function () {
+                    location.hash = "#perfil/" + yo.id;
+                }, 1500);
+            }
+        );
+
+
+        /* ==========================================
+           PERFIL DEL ARTISTA
+        ========================================== */
+
+        async function renderPerfil(id) {
+
+            const contenedor = $("contenidoPerfil");
+
+            contenedor.innerHTML = cargandoHTML();
+
+
+            const { data: artista } = await sb
+                .from("perfiles")
+                .select("*")
+                .eq("id", id)
+                .maybeSingle();
+
+            const esAdmin = yo && yo.rol === "admin";
+
+
+            if (!artista || artista.rol !== "artista" || (artista.estado !== "activo" && !esAdmin)) {
+
+                contenedor.innerHTML = vacioHTML(
+                    "🔍",
+                    "Este perfil no existe o ya no está disponible.",
+                    '<a class="boton" href="#artistas">Ver artistas</a>'
+                );
+
+                return;
+            }
+
+
+            const esMiPerfil = yo && yo.id === artista.id;
+
+
+            /* Obras (el dueño y el admin también ven las ocultas) */
+
+            const { data: obras } = await sb
+                .from("publicaciones")
+                .select(COLUMNAS_OBRA)
+                .eq("autor_id", artista.id)
+                .order("creado_en", { ascending: false });
+
+
+            /* Seguidores: solo los ve el propio artista,
+               para que no se conviertan en una competencia */
+
+            let numeros =
+                '<div class="perfil-numeros">' +
+                    "<div>🖼️ <span>" + (obras || []).filter(p => p.estado === "visible").length + "</span> obras</div>";
+
+            let loSigo = false;
+
+            if (esMiPerfil) {
+
+                const seguidores = await sb
+                    .from("seguimientos")
+                    .select("*", { count: "exact", head: true })
+                    .eq("seguido_id", artista.id);
+
+                const siguiendo = await sb
+                    .from("seguimientos")
+                    .select("*", { count: "exact", head: true })
+                    .eq("seguidor_id", artista.id);
+
+                numeros +=
+                    "<div>💜 <span>" + (seguidores.count || 0) + "</span> seguidores</div>" +
+                    "<div>🌸 <span>" + (siguiendo.count || 0) + "</span> siguiendo</div>";
+
+            } else if (yo) {
+
+                const { data } = await sb
+                    .from("seguimientos")
+                    .select("seguido_id")
+                    .eq("seguidor_id", yo.id)
+                    .eq("seguido_id", artista.id)
+                    .maybeSingle();
+
+                loSigo = Boolean(data);
+            }
+
+            numeros += "</div>";
+
+
+            /* Botones según quién está mirando */
+
+            let acciones = "";
+
+            if (esMiPerfil) {
+
+                acciones =
+                    '<a class="boton" href="#publicar">✨ Publicar dibujo</a>' +
+                    '<a class="boton boton-sec" href="#editar-perfil">✏️ Editar perfil</a>';
+
+            } else if (yo && yo.rol === "artista") {
+
+                acciones = loSigo
+                    ? '<button class="boton boton-sec" onclick="alternarSeguir(\'' + artista.id + '\', true)">💜 Siguiendo</button>'
+                    : '<button class="boton" onclick="alternarSeguir(\'' + artista.id + '\', false)">➕ Seguir</button>';
+
+            } else if (!yo) {
+
+                acciones = '<button class="boton" onclick="pedirSesion()">➕ Seguir</button>';
+            }
+
+
+            /* Bloques de información profesional */
+
+            const bloques = [];
+
+            if (artista.especialidad) {
+                bloques.push(["🎨 Especialidad", artista.especialidad]);
+            }
+
+            const redes = [];
+
+            if (artista.instagram) redes.push("📸 Instagram: " + artista.instagram);
+            if (artista.tiktok) redes.push("🎵 TikTok: " + artista.tiktok);
+            if (artista.otra_red) redes.push("🔗 " + artista.otra_red);
+
+            if (redes.length) {
+                bloques.push(["💬 Redes de contacto", redes.join("\n")]);
+            }
+
+            if (artista.formacion) {
+                bloques.push(["🎓 Información académica", artista.formacion]);
+            }
+
+            if (artista.exposiciones) {
+                bloques.push(["🏛️ Exposiciones", artista.exposiciones]);
+            }
+
+            if (artista.experiencia) {
+                bloques.push(["⭐ Experiencia", artista.experiencia]);
+            }
+
+
+            let infoHTML = "";
+
+            if (bloques.length) {
+
+                infoHTML =
+                    '<div class="perfil-info">' +
+                    bloques.map(([titulo, texto]) =>
+                        '<div class="info-bloque"><h3>' + titulo + "</h3><p>" + esc(texto) + "</p></div>"
+                    ).join("") +
+                    "</div>";
+
+            } else if (esMiPerfil) {
+
+                infoHTML =
+                    '<div class="perfil-info">' +
+                        '<div class="info-bloque"><h3>✏️ Completa tu perfil</h3>' +
+                        "<p>Agrega tu especialidad, redes de contacto y trayectoria para que tu portafolio luzca más profesional.</p></div>" +
+                    "</div>";
+            }
+
+
+            contenedor.innerHTML =
+
+                '<div class="perfil-cabecera"><div class="perfil-interior">' +
+
+                    avatarHTML(artista, "grande") +
+
+                    '<div class="perfil-datos">' +
+
+                        "<h1>" + esc(nombreVisible(artista)) + "</h1>" +
+
+                        (artista.artistico
+                            ? '<p class="nombre-real">' + esc(artista.nombre) + "</p>"
+                            : "") +
+
+                        '<span class="chip amarillo">' + esc(nombreCategoria(artista.categoria_id)) + "</span>" +
+
+                        (artista.ciudad ? ' <span class="chip azul">📍 ' + esc(artista.ciudad) + "</span>" : "") +
+
+                        (artista.estado !== "activo" ? ' <span class="estado mal">Suspendido</span>' : "") +
+
+                        (artista.bio ? '<p class="bio">' + esc(artista.bio) + "</p>" : "") +
+
+                        numeros +
+
+                        '<div class="perfil-acciones">' + acciones + "</div>" +
+
+                    "</div>" +
+
+                "</div></div>" +
+
+                infoHTML +
+
+                '<h2 class="subtitulo-seccion">🖼️ Portafolio</h2>' +
+
+                '<div class="rejilla-obras">' +
+                    (obras && obras.length
+                        ? obras.map(p => tarjetaObra(p, true)).join("")
+                        : vacioHTML(
+                            "🎨",
+                            esMiPerfil
+                                ? "Todavía no publicaste ningún dibujo.<br>¡Comparte tu primera obra!"
+                                : "Este artista todavía no publicó dibujos.",
+                            esMiPerfil ? '<a class="boton" href="#publicar">✨ Publicar dibujo</a>' : ""
+                        )) +
+                "</div>";
+        }
+
+
+        async function alternarSeguir(artistaId, loSigo) {
+
+            if (!yo) {
+                pedirSesion();
+                return;
+            }
+
+            const { error } = loSigo
+                ? await sb.from("seguimientos").delete().eq("seguidor_id", yo.id).eq("seguido_id", artistaId)
+                : await sb.from("seguimientos").insert({ seguidor_id: yo.id, seguido_id: artistaId });
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar(loSigo ? "Dejaste de seguir a este artista." : "💜 ¡Ahora sigues a este artista!");
+
+            renderPerfil(artistaId);
+        }
+
+
+        /* ==========================================
+           EDITAR PERFIL
+        ========================================== */
+
+        const camposPerfil = {
+            perNombre: "nombre",
+            perArtistico: "artistico",
+            perCiudad: "ciudad",
+            perEspecialidad: "especialidad",
+            perBio: "bio",
+            perInstagram: "instagram",
+            perTiktok: "tiktok",
+            perOtraRed: "otra_red",
+            perFormacion: "formacion",
+            perExposiciones: "exposiciones",
+            perExperiencia: "experiencia"
+        };
+
+
+        function prepararEditarPerfil() {
+
+            llenarCategorias($("perCategoria"), "Selecciona una categoría");
+
+            for (const [idCampo, columna] of Object.entries(camposPerfil)) {
+                $(idCampo).value = yo[columna] || "";
+            }
+
+            $("perCategoria").value = yo.categoria_id || "";
+
+            $("perFoto").value = "";
+
+            $("fotoPerfilVista").innerHTML = yo.foto_url
+                ? '<img src="' + esc(yo.foto_url) + '" alt="Foto actual">'
+                : "📷";
+        }
+
+
+        $("formularioPerfil").addEventListener(
+            "submit",
+            async function (event) {
+
+                event.preventDefault();
+
+                const mensajePerfil = $("mensajePerfil");
+
+                const boton = this.querySelector("button[type=submit]");
+
+                if (!yo) {
+                    pedirSesion();
+                    return;
+                }
+
+
+                if ($("perNombre").value.trim() === "" || !$("perCategoria").value) {
+
+                    mostrarMensaje(mensajePerfil, "❌ El nombre y la categoría son obligatorios.", "error");
+
+                    return;
+                }
+
+
+                const cambios = {};
+
+                for (const [idCampo, columna] of Object.entries(camposPerfil)) {
+                    cambios[columna] = $(idCampo).value.trim();
+                }
+
+                cambios.categoria_id = Number($("perCategoria").value);
+
+
+                boton.disabled = true;
+
+                mostrarMensaje(mensajePerfil, "⏳ Guardando...", "exito");
+
+
+                /* Nueva foto de perfil */
+
+                const archivo = $("perFoto").files[0];
+
+                const fotoAnterior = yo.foto_url;
+
+                if (archivo) {
+
+                    if (!archivo.type.startsWith("image/")) {
+                        boton.disabled = false;
+                        mostrarMensaje(mensajePerfil, "❌ La fotografía debe ser una imagen.", "error");
+                        return;
+                    }
+
+                    try {
+                        const blob = await procesarImagen(archivo, 300, null);
+                        cambios.foto_url = (await subirImagen(blob, "perfil")).url;
+                    } catch (e) {
+                        boton.disabled = false;
+                        fallo(e);
+                        mostrarMensaje(mensajePerfil, "❌ No pudimos subir esa imagen. Prueba con otra.", "error");
+                        return;
+                    }
+                }
+
+
+                const { error } = await sb.from("perfiles").update(cambios).eq("id", yo.id);
+
+                boton.disabled = false;
+
+                if (error) {
+                    fallo(error);
+                    mostrarMensaje(mensajePerfil, "❌ No se pudieron guardar los cambios.", "error");
+                    return;
+                }
+
+                if (archivo && fotoAnterior) {
+                    borrarImagen(rutaDesdeUrl(fotoAnterior));
+                }
+
+                Object.assign(yo, cambios);
+
+                avisar("💾 ¡Perfil actualizado!");
+
+                location.hash = "#perfil/" + yo.id;
+            }
+        );
+
+
+        /* ==========================================
+           PUBLICAR / EDITAR DIBUJO
+        ========================================== */
+
+        async function prepararPublicar(id) {
+
+            const form = $("formularioPublicar");
+
+            if (yo.rol !== "artista") {
+                avisar("⛔ La cuenta de administración no publica dibujos.", "error");
+                location.hash = "#admin";
+                return;
+            }
+
+            form.reset();
+
+            llenarCategorias($("pubCategoria"), "Selecciona una categoría");
+
+            llenarTecnicas($("pubTecnica"), "Selecciona una técnica");
+
+            edicionId = null;
+
+
+            /* MODO EDICIÓN */
+
+            if (id) {
+
+                const { data: p } = await sb
+                    .from("publicaciones")
+                    .select(COLUMNAS_OBRA)
+                    .eq("id", id)
+                    .maybeSingle();
+
+                if (!p || p.autor_id !== yo.id) {
+                    avisar("⛔ Solo puedes editar tus propias obras.", "error");
+                    location.hash = "#perfil/" + yo.id;
+                    return;
+                }
+
+                edicionId = id;
+
+                $("tituloPublicar").textContent = "EDITAR DIBUJO";
+
+                $("botonPublicar").textContent = "💾 GUARDAR CAMBIOS";
+
+                $("pubTitulo").value = p.titulo;
+
+                $("pubDescripcion").value = p.descripcion;
+
+                $("pubCategoria").value = p.categoria_id || "";
+
+                $("pubTecnica").value = p.tecnica;
+
+                $("pubEtiquetas").value = etiquetasDe(p).join(", ");
+
+                $("pubVistaPrevia").innerHTML =
+                    '<img src="' + esc(p.imagen_url) + '" alt="Imagen actual">' +
+                    "<p>Imagen actual. Elige otra solo si quieres reemplazarla.</p>";
+
+                return;
+            }
+
+
+            /* MODO NUEVA PUBLICACIÓN */
+
+            $("tituloPublicar").textContent = "PUBLICAR DIBUJO";
+
+            $("botonPublicar").textContent = "✨ PUBLICAR";
+
+            $("pubVistaPrevia").innerHTML =
+                '<div class="icono">🖼️</div><p>Aquí aparecerá tu dibujo</p>';
+        }
+
+
+        $("pubImagen").addEventListener("change", function () {
+
+            const archivo = this.files[0];
+
+            if (archivo && archivo.type.startsWith("image/")) {
+
+                $("pubVistaPrevia").innerHTML =
+                    '<img src="' + URL.createObjectURL(archivo) + '" alt="Vista previa">' +
+                    "<p>" + esc(archivo.name) + "</p>";
+            }
+        });
+
+
+        /* Guarda las etiquetas de una publicación
+           (tabla Etiqueta + tabla Publicación_Etiqueta) */
+
+        async function guardarEtiquetas(publicacionId, texto) {
+
+            const nombres = [...new Set(
+                texto
+                    .split(",")
+                    .map(t => t.trim().toLowerCase().replace(/^#/, "").slice(0, 30))
+                    .filter(t => t !== "")
+            )].slice(0, 10);
+
+            await sb.from("publicacion_etiqueta").delete().eq("publicacion_id", publicacionId);
+
+            if (nombres.length === 0) {
+                return;
+            }
+
+            await sb
+                .from("etiquetas")
+                .upsert(nombres.map(n => ({ nombre: n })), { onConflict: "nombre", ignoreDuplicates: true });
+
+            const { data } = await sb
+                .from("etiquetas")
+                .select("id, nombre")
+                .in("nombre", nombres);
+
+            if (data && data.length) {
+
+                await sb.from("publicacion_etiqueta").insert(
+                    data.map(e => ({ publicacion_id: publicacionId, etiqueta_id: e.id }))
+                );
+            }
+        }
+
+
+        $("formularioPublicar").addEventListener(
+            "submit",
+            async function (event) {
+
+                event.preventDefault();
+
+                const mensajePub = $("mensajePublicar");
+
+                const boton = $("botonPublicar");
+
+                if (!yo) {
+                    pedirSesion();
+                    return;
+                }
+
+
+                const archivo = $("pubImagen").files[0];
+
+                const titulo = $("pubTitulo").value.trim();
+
+                const descripcion = $("pubDescripcion").value.trim();
+
+                const categoria = Number($("pubCategoria").value);
+
+                const tecnica = $("pubTecnica").value;
+
+
+                /* =========================
+                   VALIDACIONES
+                ========================== */
+
+                if (!edicionId && !archivo) {
+                    mostrarMensaje(mensajePub, "❌ Elige la imagen de tu dibujo.", "error");
+                    return;
+                }
+
+                if (archivo && !archivo.type.startsWith("image/")) {
+                    mostrarMensaje(mensajePub, "❌ El archivo debe ser una imagen.", "error");
+                    return;
+                }
+
+                if (archivo && archivo.size > 20 * 1024 * 1024) {
+                    mostrarMensaje(mensajePub, "❌ La imagen es muy pesada (máximo 20 MB).", "error");
+                    return;
+                }
+
+                if (titulo === "" || !categoria || !tecnica) {
+                    mostrarMensaje(mensajePub, "❌ Completa el título, la categoría y la técnica.", "error");
+                    return;
+                }
+
+
+                boton.disabled = true;
+
+                mostrarMensaje(mensajePub, "⏳ Subiendo tu dibujo...", "exito");
+
+
+                /* =========================
+                   OPTIMIZAR Y SUBIR IMAGEN
+                ========================== */
+
+                let subida = null;
+
+                if (archivo) {
+
+                    try {
+
+                        const marca = $("pubMarca").checked
+                            ? "© " + nombreVisible(yo) + " · Trazos Libres"
+                            : null;
+
+                        const blob = await procesarImagen(archivo, 1600, marca);
+
+                        subida = await subirImagen(blob, "obra");
+
+                    } catch (e) {
+
+                        boton.disabled = false;
+
+                        fallo(e);
+
+                        mostrarMensaje(mensajePub, "❌ No pudimos subir esa imagen. Prueba con otra.", "error");
+
+                        return;
+                    }
+                }
+
+
+                /* =========================
+                   GUARDAR EN LA BASE DE DATOS
+                ========================== */
+
+                const datos = {
+                    titulo: titulo,
+                    descripcion: descripcion,
+                    categoria_id: categoria,
+                    tecnica: tecnica
+                };
+
+                if (subida) {
+                    datos.imagen_url = subida.url;
+                    datos.imagen_ruta = subida.ruta;
+                }
+
+                let id = edicionId;
+
+                let rutaAnterior = null;
+
+                let resultado;
+
+                if (edicionId) {
+
+                    if (subida) {
+
+                        const { data: anterior } = await sb
+                            .from("publicaciones")
+                            .select("imagen_ruta")
+                            .eq("id", edicionId)
+                            .maybeSingle();
+
+                        rutaAnterior = anterior ? anterior.imagen_ruta : null;
+                    }
+
+                    resultado = await sb.from("publicaciones").update(datos).eq("id", edicionId);
+
+                } else {
+
+                    datos.autor_id = yo.id;
+
+                    resultado = await sb.from("publicaciones").insert(datos).select("id").single();
+
+                    if (resultado.data) {
+                        id = resultado.data.id;
+                    }
+                }
+
+
+                if (resultado.error) {
+
+                    boton.disabled = false;
+
+                    if (subida) {
+                        borrarImagen(subida.ruta);
+                    }
+
+                    fallo(resultado.error);
+
+                    mostrarMensaje(mensajePub, "❌ No se pudo guardar. Inténtalo de nuevo.", "error");
+
+                    return;
+                }
+
+
+                await guardarEtiquetas(id, $("pubEtiquetas").value);
+
+                if (rutaAnterior) {
+                    borrarImagen(rutaAnterior);
+                }
+
+                boton.disabled = false;
+
+                avisar(edicionId ? "💾 ¡Cambios guardados!" : "🎉 ¡Tu dibujo fue publicado!");
+
+                edicionId = null;
+
+                location.hash = "#obra/" + id;
+            }
+        );
+
+
+        /* ==========================================
+           VER UNA PUBLICACIÓN
+        ========================================== */
+
+        async function renderObra(id) {
+
+            const contenedor = $("contenidoObra");
+
+            contenedor.innerHTML = cargandoHTML();
+
+
+            /* La base de datos solo devuelve la obra si es pública,
+               si es tuya o si eres administrador */
+
+            const { data: p } = await sb
+                .from("publicaciones")
+                .select(COLUMNAS_OBRA)
+                .eq("id", id)
+                .maybeSingle();
+
+
+            if (!p) {
+
+                contenedor.innerHTML = vacioHTML(
+                    "🔍",
+                    "Esta obra no existe o ya no está disponible.",
+                    '<a class="boton" href="#explorar">Volver a explorar</a>'
+                );
+
+                return;
+            }
+
+
+            const esDueno = yo && yo.id === p.autor_id;
+
+            const esAdmin = yo && yo.rol === "admin";
+
+
+            const { data: comentarios } = await sb
+                .from("comentarios")
+                .select("id, texto, creado_en, usuario_id, publicacion_id, autor:perfiles(id, nombre, artistico, foto_url)")
+                .eq("publicacion_id", id)
+                .order("creado_en", { ascending: true });
+
+
+            /* "Me gusta": la cantidad solo la ve el autor
+               (la base de datos no se la muestra a nadie más) */
+
+            let cantidadMeGusta = 0;
+
+            let meGustaAMi = false;
+
+            if (esDueno || esAdmin) {
+
+                const { count } = await sb
+                    .from("megusta")
+                    .select("*", { count: "exact", head: true })
+                    .eq("publicacion_id", id);
+
+                cantidadMeGusta = count || 0;
+
+            } else if (yo) {
+
+                const { data } = await sb
+                    .from("megusta")
+                    .select("usuario_id")
+                    .eq("publicacion_id", id)
+                    .eq("usuario_id", yo.id)
+                    .maybeSingle();
+
+                meGustaAMi = Boolean(data);
+            }
+
+
+            const etiquetas = etiquetasDe(p);
+
+
+            /* BOTONES */
+
+            let acciones = "";
+
+            if (!esAdmin && !esDueno) {
+
+                acciones += meGustaAMi
+                    ? '<button class="boton boton-chico" onclick="alternarMeGusta(' + id + ', true)">💜 Te gusta</button>'
+                    : '<button class="boton boton-chico boton-sec" onclick="alternarMeGusta(' + id + ', false)">🤍 Me gusta</button>';
+
+                acciones += '<button class="boton boton-chico boton-sec" onclick="mostrarReporte()">🚩 Reportar</button>';
+            }
+
+            if (esDueno) {
+                acciones += '<a class="boton boton-chico" href="#publicar/' + id + '">✏️ Editar</a>';
+            }
+
+            if (esDueno || esAdmin) {
+                acciones += '<button class="boton boton-chico boton-peligro" onclick="eliminarObra(' + id + ')">🗑️ Eliminar</button>';
+            }
+
+
+            const notaMeGusta = (esDueno || esAdmin)
+                ? '<p class="nota-privada">💜 ' + cantidadMeGusta +
+                  (cantidadMeGusta === 1 ? " persona marcó" : " personas marcaron") +
+                  ' "me gusta". Solo ' + (esDueno ? "tú puedes" : "el autor puede") + " ver este número.</p>"
+                : "";
+
+
+            const avisoOculta = p.estado !== "visible"
+                ? '<p class="dato"><span class="estado mal">🙈 Oculta por el administrador</span></p>'
+                : "";
+
+
+            const lista = comentarios || [];
+
+
+            contenedor.innerHTML =
+
+                '<div class="detalle-obra">' +
+
+                    '<div class="detalle-imagen">' +
+                        '<img src="' + esc(p.imagen_url) + '" alt="' + esc(p.titulo) + '">' +
+                    "</div>" +
+
+                    '<div class="detalle-texto">' +
+
+                        "<h1>" + esc(p.titulo) + "</h1>" +
+
+                        avisoOculta +
+
+                        '<a class="autor-linea" href="#perfil/' + p.autor_id + '">' +
+                            avatarHTML(p.autor) +
+                            "<div><strong>" + esc(nombreVisible(p.autor)) + "</strong>" +
+                            "<small>Publicado el " + formatoFecha(p.creado_en) + "</small></div>" +
+                        "</a>" +
+
+                        '<p class="dato"><strong>Categoría:</strong> <span class="chip">' +
+                            esc(nombreCategoria(p.categoria_id)) + "</span></p>" +
+
+                        '<p class="dato"><strong>Técnica:</strong> <span class="chip azul">' +
+                            esc(p.tecnica) + "</span></p>" +
+
+                        (etiquetas.length
+                            ? '<p class="dato"><strong>Etiquetas:</strong> ' +
+                              etiquetas.map(e =>
+                                  '<button class="chip rosa" data-etiqueta="' + esc(e) + '" onclick="buscarEtiqueta(this.dataset.etiqueta)">#' + esc(e) + "</button>"
+                              ).join(" ") + "</p>"
+                            : "") +
+
+                        (p.descripcion ? '<p class="descripcion-obra">' + esc(p.descripcion) + "</p>" : "") +
+
+                        '<div class="detalle-acciones">' + acciones + "</div>" +
+
+                        notaMeGusta +
+
+
+                        /* Caja para reportar */
+
+                        '<div class="caja-reporte" id="cajaReporte">' +
+                            '<form class="formulario una-columna" onsubmit="reportar(event, ' + id + ')">' +
+                                '<div class="campo"><label for="motivoReporte">¿Por qué reportas esta obra?</label>' +
+                                '<select id="motivoReporte" required>' +
+                                    '<option value="">Selecciona un motivo</option>' +
+                                    "<option>Plagio o uso no autorizado de un dibujo</option>" +
+                                    "<option>Contenido inapropiado</option>" +
+                                    "<option>Spam o publicidad</option>" +
+                                    "<option>Otro</option>" +
+                                "</select></div>" +
+                                '<div class="campo"><label for="detalleReporte">Detalles <small>(opcional)</small></label>' +
+                                '<textarea id="detalleReporte" rows="2" maxlength="300"></textarea></div>' +
+                                '<div class="boton-registro"><button type="submit">🚩 Enviar reporte</button></div>' +
+                            "</form>" +
+                        "</div>" +
+
+                    "</div>" +
+
+                "</div>" +
+
+
+                /* COMENTARIOS */
+
+                '<div class="comentarios">' +
+
+                    "<h2>💬 Comentarios (" + lista.length + ")</h2>" +
+
+                    (lista.length
+                        ? lista.map(c => comentarioHTML(c, p)).join("")
+                        : "<p>Todavía no hay comentarios. ¡Sé la primera persona en comentar! 🌸</p>") +
+
+                    (yo && !esAdmin
+                        ? '<form class="form-comentario" onsubmit="comentar(event, ' + id + ')">' +
+                              '<textarea id="textoComentario" rows="2" maxlength="500" placeholder="Escribe un comentario amable y constructivo..." required></textarea>' +
+                              '<button class="boton" type="submit">Enviar 💬</button>' +
+                          "</form>"
+                        : "") +
+
+                    (!yo
+                        ? '<p style="margin-top:15px"><a href="#login">Inicia sesión</a> para dejar un comentario.</p>'
+                        : "") +
+
+                "</div>";
+        }
+
+
+        function comentarioHTML(c, publicacion) {
+
+            /* Puede borrar: quien lo escribió, el dueño de la obra o el admin */
+
+            const puedeBorrar = yo && (
+                yo.id === c.usuario_id ||
+                yo.id === publicacion.autor_id ||
+                yo.rol === "admin"
+            );
+
+            return (
+                '<div class="comentario">' +
+                    '<a href="#perfil/' + c.usuario_id + '">' + avatarHTML(c.autor) + "</a>" +
+                    '<div class="comentario-cuerpo">' +
+                        "<strong>" + esc(nombreVisible(c.autor)) + "</strong> " +
+                        "<small>· " + formatoFecha(c.creado_en) + "</small>" +
+                        "<p>" + esc(c.texto) + "</p>" +
+                    "</div>" +
+                    (puedeBorrar
+                        ? '<button class="boton boton-chico boton-peligro" onclick="eliminarComentario(' + c.id + ', ' + c.publicacion_id + ')" title="Eliminar comentario">🗑️</button>'
+                        : "") +
+                "</div>"
+            );
+        }
+
+
+        async function alternarMeGusta(id, yaMeGusta) {
+
+            if (!yo) {
+                pedirSesion();
+                return;
+            }
+
+            const { error } = yaMeGusta
+                ? await sb.from("megusta").delete().eq("publicacion_id", id).eq("usuario_id", yo.id)
+                : await sb.from("megusta").insert({ publicacion_id: id, usuario_id: yo.id });
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            renderObra(id);
+        }
+
+
+        async function comentar(event, id) {
+
+            event.preventDefault();
+
+            const texto = $("textoComentario").value.trim();
+
+            if (!yo) {
+                pedirSesion();
+                return;
+            }
+
+            if (texto === "") {
+                return;
+            }
+
+            const { error } = await sb.from("comentarios").insert({
+                publicacion_id: id,
+                usuario_id: yo.id,
+                texto: texto
+            });
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar("💬 ¡Comentario publicado!");
+
+            renderObra(id);
+        }
+
+
+        async function eliminarComentario(comentarioId, publicacionId) {
+
+            if (!confirm("¿Eliminar este comentario?")) {
+                return;
+            }
+
+            const { error } = await sb.from("comentarios").delete().eq("id", comentarioId);
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar("🗑️ Comentario eliminado.");
+
+            if (location.hash.startsWith("#admin")) {
+                renderAdmin("comentarios");
+            } else {
+                renderObra(publicacionId);
+            }
+        }
+
+
+        function mostrarReporte() {
+
+            if (!yo) {
+                pedirSesion();
+                return;
+            }
+
+            $("cajaReporte").classList.toggle("visible");
+        }
+
+
+        async function reportar(event, id) {
+
+            event.preventDefault();
+
+            const { data: previo } = await sb
+                .from("reportes")
+                .select("id")
+                .eq("publicacion_id", id)
+                .eq("usuario_id", yo.id)
+                .eq("estado", "pendiente")
+                .maybeSingle();
+
+            if (previo) {
+                avisar("Ya reportaste esta obra. El administrador la revisará pronto.", "error");
+                $("cajaReporte").classList.remove("visible");
+                return;
+            }
+
+            const { error } = await sb.from("reportes").insert({
+                publicacion_id: id,
+                usuario_id: yo.id,
+                motivo: $("motivoReporte").value,
+                detalle: $("detalleReporte").value.trim()
+            });
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar("🚩 Gracias. El administrador revisará tu reporte.");
+
+            $("cajaReporte").classList.remove("visible");
+        }
+
+
+        /* Elimina una obra: la base de datos borra en cascada
+           sus comentarios, me gusta, etiquetas y reportes */
+
+        async function eliminarObra(id) {
+
+            const { data: p } = await sb
+                .from("publicaciones")
+                .select("titulo, imagen_ruta, autor_id")
+                .eq("id", id)
+                .maybeSingle();
+
+            if (!p || !confirm("¿Seguro que quieres eliminar \"" + p.titulo + "\"? Esta acción no se puede deshacer.")) {
+                return;
+            }
+
+            const { error } = await sb.from("publicaciones").delete().eq("id", id);
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            borrarImagen(p.imagen_ruta);
+
+            avisar("🗑️ Obra eliminada.");
+
+            if (location.hash.startsWith("#admin")) {
+                renderAdmin(pestanaAdminActual());
+            } else if (yo && yo.rol === "admin") {
+                location.hash = "#admin/publicaciones";
+            } else {
+                location.hash = "#perfil/" + p.autor_id;
+            }
+        }
+
+
+        /* ==========================================
+           PANEL DE ADMINISTRACIÓN
+        ========================================== */
+
+        function pestanaAdminActual() {
+            return location.hash.split("/")[1] || "resumen";
+        }
+
+
+        async function renderAdmin(pestana) {
+
+            const { count: pendientes } = await sb
+                .from("reportes")
+                .select("*", { count: "exact", head: true })
+                .eq("estado", "pendiente");
+
+            const pestanas = [
+                ["resumen", "📊 Resumen"],
+                ["usuarios", "👥 Usuarios"],
+                ["publicaciones", "🖼️ Publicaciones"],
+                ["categorias", "🏷️ Categorías"],
+                ["comentarios", "💬 Comentarios"],
+                ["reportes", "🚩 Reportes" + (pendientes ? '<span class="insignia">' + pendientes + "</span>" : "")]
+            ];
+
+            $("pestanasAdmin").innerHTML = pestanas.map(([clave, texto]) =>
+                '<a href="#admin/' + clave + '" class="' + (clave === pestana ? "activo" : "") + '">' + texto + "</a>"
+            ).join("");
+
+
+            const vistas = {
+                resumen: adminResumen,
+                usuarios: adminUsuarios,
+                publicaciones: adminPublicaciones,
+                categorias: adminCategorias,
+                comentarios: adminComentarios,
+                reportes: adminReportes
+            };
+
+            $("contenidoAdmin").innerHTML = cargandoHTML();
+
+            try {
+                $("contenidoAdmin").innerHTML = await (vistas[pestana] || adminResumen)();
+            } catch (e) {
+                fallo(e);
+                $("contenidoAdmin").innerHTML = vacioHTML("⚠️", "No se pudo cargar esta sección.");
+            }
+        }
+
+
+        /* Cuenta cuántas publicaciones tiene cada categoría */
+
+        async function publicacionesPorCategoria() {
+
+            const { data } = await sb.from("publicaciones").select("categoria_id");
+
+            const conteo = {};
+
+            for (const p of data || []) {
+                conteo[p.categoria_id] = (conteo[p.categoria_id] || 0) + 1;
+            }
+
+            return conteo;
+        }
+
+
+        async function contar(tabla, filtro) {
+
+            let consulta = sb.from(tabla).select("*", { count: "exact", head: true });
+
+            if (filtro) {
+                consulta = consulta.eq(filtro[0], filtro[1]);
+            }
+
+            const { count } = await consulta;
+
+            return count || 0;
+        }
+
+
+        async function adminResumen() {
+
+            const [artistas, publicaciones, comentarios, pendientes, conteo] = await Promise.all([
+                contar("perfiles", ["rol", "artista"]),
+                contar("publicaciones"),
+                contar("comentarios"),
+                contar("reportes", ["estado", "pendiente"]),
+                publicacionesPorCategoria()
+            ]);
+
+            return (
+                '<div class="estadisticas">' +
+                    '<div class="estadistica"><div class="icono">👥</div><strong>' + artistas + "</strong>artistas registrados</div>" +
+                    '<div class="estadistica"><div class="icono">🖼️</div><strong>' + publicaciones + "</strong>publicaciones</div>" +
+                    '<div class="estadistica"><div class="icono">💬</div><strong>' + comentarios + "</strong>comentarios</div>" +
+                    '<div class="estadistica"><div class="icono">🚩</div><strong>' + pendientes + "</strong>reportes pendientes</div>" +
+                "</div>" +
+
+                '<div class="panel-blanco">' +
+                    "<h2>🌸 Publicaciones por categoría</h2>" +
+                    '<table class="tabla"><tr><th>Categoría</th><th>Publicaciones</th></tr>' +
+                    categorias.map(c =>
+                        "<tr><td>" + esc(c.nombre) + "</td><td>" + (conteo[c.id] || 0) + "</td></tr>"
+                    ).join("") +
+                    "</table>" +
+                "</div>"
+            );
+        }
+
+
+        async function adminUsuarios() {
+
+            const { data, error } = await sb.rpc("admin_listar_usuarios");
+
+            if (error) {
+                throw error;
+            }
+
+            const filas = data.map(function (u) {
+
+                const estado = u.estado === "activo"
+                    ? '<span class="estado bien">Activo</span>'
+                    : '<span class="estado mal">Suspendido</span>';
+
+                let acciones = "";
+
+                if (u.rol === "artista") {
+
+                    acciones =
+                        '<a class="boton boton-chico boton-sec" href="#perfil/' + u.id + '">Ver</a>' +
+                        '<button class="boton boton-chico" onclick="cambiarEstadoUsuario(\'' + u.id + '\', \'' + u.estado + '\')">' +
+                            (u.estado === "activo" ? "Suspender" : "Activar") + "</button>" +
+                        '<button class="boton boton-chico boton-peligro" onclick="eliminarUsuario(\'' + u.id + '\')">Eliminar</button>';
+
+                } else {
+
+                    acciones = "<small>Cuenta de administración</small>";
+                }
+
+                return (
+                    "<tr>" +
+                        "<td>" + avatarHTML(u) + "</td>" +
+                        "<td><strong>" + esc(nombreVisible(u)) + "</strong><br><small>" + esc(u.nombre) + "</small></td>" +
+                        "<td>" + esc(u.correo) + "</td>" +
+                        "<td>" + (u.rol === "admin" ? "Administrador" : "Artista") + "</td>" +
+                        "<td>" + u.obras + "</td>" +
+                        "<td>" + estado + "</td>" +
+                        '<td><div class="acciones">' + acciones + "</div></td>" +
+                    "</tr>"
+                );
+
+            }).join("");
+
+            return (
+                '<div class="panel-blanco">' +
+                    "<h2>👥 Usuarios (" + data.length + ")</h2>" +
+                    '<table class="tabla">' +
+                        "<tr><th></th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Obras</th><th>Estado</th><th>Acciones</th></tr>" +
+                        filas +
+                    "</table>" +
+                "</div>"
+            );
+        }
+
+
+        async function adminPublicaciones() {
+
+            const { data: lista, error } = await sb
+                .from("publicaciones")
+                .select(COLUMNAS_OBRA)
+                .order("creado_en", { ascending: false });
+
+            if (error) {
+                throw error;
+            }
+
+            if (lista.length === 0) {
+                return vacioHTML("🖼️", "Todavía no hay publicaciones.");
+            }
+
+            const filas = lista.map(p =>
+                "<tr>" +
+                    '<td><img class="miniatura" src="' + esc(p.imagen_url) + '" alt=""></td>' +
+                    "<td><strong>" + esc(p.titulo) + "</strong></td>" +
+                    "<td>" + esc(nombreVisible(p.autor)) + "</td>" +
+                    "<td>" + esc(nombreCategoria(p.categoria_id)) + "</td>" +
+                    "<td>" + formatoFecha(p.creado_en) + "</td>" +
+                    "<td>" + (p.estado === "visible"
+                        ? '<span class="estado bien">Visible</span>'
+                        : '<span class="estado mal">Oculta</span>') + "</td>" +
+                    '<td><div class="acciones">' +
+                        '<a class="boton boton-chico boton-sec" href="#obra/' + p.id + '">Ver</a>' +
+                        '<button class="boton boton-chico" onclick="cambiarEstadoObra(' + p.id + ", '" + p.estado + "')\">" +
+                            (p.estado === "visible" ? "Ocultar" : "Mostrar") + "</button>" +
+                        '<button class="boton boton-chico boton-peligro" onclick="eliminarObra(' + p.id + ')">Eliminar</button>' +
+                    "</div></td>" +
+                "</tr>"
+            ).join("");
+
+            return (
+                '<div class="panel-blanco">' +
+                    "<h2>🖼️ Publicaciones (" + lista.length + ")</h2>" +
+                    '<table class="tabla">' +
+                        "<tr><th></th><th>Título</th><th>Autor</th><th>Categoría</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr>" +
+                        filas +
+                    "</table>" +
+                "</div>"
+            );
+        }
+
+
+        async function adminCategorias() {
+
+            await cargarCategorias();
+
+            const conteo = await publicacionesPorCategoria();
+
+            const filas = categorias.map(c =>
+                "<tr>" +
+                    "<td><strong>" + esc(c.nombre) + "</strong></td>" +
+                    "<td>" + (conteo[c.id] || 0) + "</td>" +
+                    '<td><div class="acciones">' +
+                        (c.nombre === "Otro"
+                            ? "<small>Categoría por defecto</small>"
+                            : '<button class="boton boton-chico boton-sec" onclick="renombrarCategoria(' + c.id + ')">Renombrar</button>' +
+                              '<button class="boton boton-chico boton-peligro" onclick="eliminarCategoria(' + c.id + ')">Eliminar</button>') +
+                    "</div></td>" +
+                "</tr>"
+            ).join("");
+
+            return (
+                '<div class="panel-blanco">' +
+                    "<h2>🏷️ Categorías (" + categorias.length + ")</h2>" +
+                    '<form class="fila-formulario" onsubmit="agregarCategoria(event)">' +
+                        '<input type="text" id="nuevaCategoria" maxlength="40" placeholder="Nombre de la nueva categoría" required>' +
+                        '<button class="boton" type="submit">➕ Agregar</button>' +
+                    "</form>" +
+                    '<table class="tabla">' +
+                        "<tr><th>Categoría</th><th>Publicaciones</th><th>Acciones</th></tr>" +
+                        filas +
+                    "</table>" +
+                "</div>"
+            );
+        }
+
+
+        async function adminComentarios() {
+
+            const { data: lista, error } = await sb
+                .from("comentarios")
+                .select("id, texto, creado_en, publicacion_id, autor:perfiles(nombre, artistico), publicacion:publicaciones(titulo)")
+                .order("creado_en", { ascending: false });
+
+            if (error) {
+                throw error;
+            }
+
+            if (lista.length === 0) {
+                return vacioHTML("💬", "Todavía no hay comentarios.");
+            }
+
+            const filas = lista.map(c =>
+                "<tr>" +
+                    "<td>" + esc(nombreVisible(c.autor)) + "</td>" +
+                    "<td>" + esc(c.texto) + "</td>" +
+                    '<td><a href="#obra/' + c.publicacion_id + '">' + esc(c.publicacion ? c.publicacion.titulo : "—") + "</a></td>" +
+                    "<td>" + formatoFecha(c.creado_en) + "</td>" +
+                    '<td><button class="boton boton-chico boton-peligro" onclick="eliminarComentario(' + c.id + ", " + c.publicacion_id + ')">Eliminar</button></td>' +
+                "</tr>"
+            ).join("");
+
+            return (
+                '<div class="panel-blanco">' +
+                    "<h2>💬 Comentarios (" + lista.length + ")</h2>" +
+                    '<table class="tabla">' +
+                        "<tr><th>Autor</th><th>Comentario</th><th>Obra</th><th>Fecha</th><th>Acciones</th></tr>" +
+                        filas +
+                    "</table>" +
+                "</div>"
+            );
+        }
+
+
+        async function adminReportes() {
+
+            const { data, error } = await sb
+                .from("reportes")
+                .select("id, motivo, detalle, estado, creado_en, autor:perfiles(nombre, artistico), publicacion:publicaciones(id, titulo, imagen_url, estado)")
+                .order("creado_en", { ascending: false });
+
+            if (error) {
+                throw error;
+            }
+
+            if (data.length === 0) {
+                return vacioHTML("🚩", "No hay reportes. ¡La comunidad está tranquila! 🌸");
+            }
+
+            /* Primero los pendientes */
+
+            const lista = data.sort((a, b) =>
+                (a.estado === "pendiente" ? 0 : 1) - (b.estado === "pendiente" ? 0 : 1)
+            );
+
+            const filas = lista.map(r => {
+
+                const obra = r.publicacion;
+
+                return (
+                    "<tr>" +
+                        "<td>" + (obra ? '<img class="miniatura" src="' + esc(obra.imagen_url) + '" alt="">' : "") + "</td>" +
+                        "<td>" + (obra ? '<a href="#obra/' + obra.id + '">' + esc(obra.titulo) + "</a>" : "—") + "</td>" +
+                        "<td><strong>" + esc(r.motivo) + "</strong>" + (r.detalle ? "<br><small>" + esc(r.detalle) + "</small>" : "") + "</td>" +
+                        "<td>" + esc(nombreVisible(r.autor)) + "</td>" +
+                        "<td>" + formatoFecha(r.creado_en) + "</td>" +
+                        "<td>" + (r.estado === "pendiente"
+                            ? '<span class="estado espera">Pendiente</span>'
+                            : '<span class="estado bien">Resuelto</span>') + "</td>" +
+                        '<td><div class="acciones">' +
+                            (r.estado === "pendiente"
+                                ? '<button class="boton boton-chico" onclick="resolverReporte(' + r.id + ')">✔ Resolver</button>'
+                                : "") +
+                            (obra && obra.estado === "visible"
+                                ? '<button class="boton boton-chico boton-sec" onclick="cambiarEstadoObra(' + obra.id + ", 'visible')\">Ocultar obra</button>"
+                                : "") +
+                            (obra
+                                ? '<button class="boton boton-chico boton-peligro" onclick="eliminarObra(' + obra.id + ')">Eliminar obra</button>'
+                                : "") +
+                        "</div></td>" +
+                    "</tr>"
+                );
+
+            }).join("");
+
+            return (
+                '<div class="panel-blanco">' +
+                    "<h2>🚩 Reportes (" + lista.length + ")</h2>" +
+                    '<table class="tabla">' +
+                        "<tr><th></th><th>Obra</th><th>Motivo</th><th>Reportado por</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr>" +
+                        filas +
+                    "</table>" +
+                "</div>"
+            );
+        }
+
+
+        /* ACCIONES DEL ADMINISTRADOR */
+
+        async function cambiarEstadoUsuario(id, estadoActual) {
+
+            const nuevo = estadoActual === "activo" ? "suspendido" : "activo";
+
+            const { error } = await sb.from("perfiles").update({ estado: nuevo }).eq("id", id);
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar(nuevo === "activo" ? "✔ Cuenta activada." : "⛔ Cuenta suspendida.");
+
+            renderAdmin("usuarios");
+        }
+
+
+        async function eliminarUsuario(id) {
+
+            if (!confirm("¿Eliminar esta cuenta y todas sus obras? Esta acción no se puede deshacer.")) {
+                return;
+            }
+
+            /* Borrar sus imágenes del almacenamiento */
+
+            const { data: archivos } = await sb.storage.from(CARPETA_IMAGENES).list(id, { limit: 1000 });
+
+            if (archivos && archivos.length) {
+                await sb.storage.from(CARPETA_IMAGENES).remove(archivos.map(a => id + "/" + a.name));
+            }
+
+            /* Al borrar el perfil, la base de datos borra en cascada
+               sus obras, comentarios, me gusta, seguimientos y reportes */
+
+            const { error } = await sb.from("perfiles").delete().eq("id", id);
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar("🗑️ Usuario eliminado.");
+
+            renderAdmin("usuarios");
+        }
+
+
+        async function cambiarEstadoObra(id, estadoActual) {
+
+            const nuevo = estadoActual === "visible" ? "oculta" : "visible";
+
+            const { error } = await sb.from("publicaciones").update({ estado: nuevo }).eq("id", id);
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar(nuevo === "visible" ? "👁️ La obra vuelve a ser visible." : "🙈 Obra ocultada.");
+
+            renderAdmin(pestanaAdminActual());
+        }
+
+
+        async function resolverReporte(id) {
+
+            const { error } = await sb.from("reportes").update({ estado: "resuelto" }).eq("id", id);
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar("✔ Reporte marcado como resuelto.");
+
+            renderAdmin("reportes");
+        }
+
+
+        async function agregarCategoria(event) {
+
+            event.preventDefault();
+
+            const nombre = $("nuevaCategoria").value.trim();
+
+            const { error } = await sb.from("categorias").insert({ nombre: nombre });
+
+            if (error) {
+                avisar(error.code === "23505" ? "❌ Esa categoría ya existe." : "❌ No se pudo agregar la categoría.", "error");
+                return;
+            }
+
+            avisar("🏷️ Categoría agregada.");
+
+            renderAdmin("categorias");
+        }
+
+
+        async function renombrarCategoria(id) {
+
+            const c = categorias.find(x => x.id === id);
+
+            const nuevo = prompt("Nuevo nombre para la categoría:", c.nombre);
+
+            if (!nuevo || nuevo.trim() === "") {
+                return;
+            }
+
+            const { error } = await sb
+                .from("categorias")
+                .update({ nombre: nuevo.trim().slice(0, 40) })
+                .eq("id", id);
+
+            if (error) {
+                avisar(error.code === "23505" ? "❌ Esa categoría ya existe." : "❌ No se pudo renombrar.", "error");
+                return;
+            }
+
+            renderAdmin("categorias");
+        }
+
+
+        /* Al eliminar una categoría, sus obras y artistas
+           pasan a la categoría "Otro" */
+
+        async function eliminarCategoria(id) {
+
+            const c = categorias.find(x => x.id === id);
+
+            const otro = categorias.find(x => x.nombre === "Otro");
+
+            if (!confirm("¿Eliminar la categoría \"" + c.nombre + "\"? Sus obras pasarán a \"Otro\".")) {
+                return;
+            }
+
+            if (otro) {
+                await sb.from("publicaciones").update({ categoria_id: otro.id }).eq("categoria_id", id);
+                await sb.from("perfiles").update({ categoria_id: otro.id }).eq("categoria_id", id);
+            }
+
+            const { error } = await sb.from("categorias").delete().eq("id", id);
+
+            if (error) {
+                fallo(error);
+                return;
+            }
+
+            avisar("🗑️ Categoría eliminada.");
+
+            renderAdmin("categorias");
+        }
+
+
+        /* ==========================================
+           ARRANQUE DEL SISTEMA
+        ========================================== */
+
+        async function iniciar() {
+
+            await Promise.all([cargarCategorias(), cargarSesion()]);
+
+            navegar();
+        }
+
+        iniciar();
+
+    </script>
+
+
+</body>
+
+</html>
